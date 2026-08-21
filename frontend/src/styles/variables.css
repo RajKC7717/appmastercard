@@ -1,0 +1,61 @@
+/* Shared design tokens as CSS custom properties.
+   Values per DESIGN.md — SevaSahayog Volunteer Experience Platform.
+   Import this file ONCE globally (in index.css),
+   then every component's .module.css file can use var(--color-primary) etc. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root {
+  /* Colors */
+  --color-primary: #016B61;
+  --color-primary-hover: #01524A;
+  --color-secondary: #70B2B2;
+  --color-accent: #E5E9C5;
+  --color-tint: #9ECFD4;
+  --color-background: #F5F9F8;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #10241F;
+  --color-text-muted: #4B6B66;
+  --color-border: #DCEAE8;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+
+  /* Low-opacity tints of the tokens above — for banner/badge backgrounds. */
+  --color-tint-bg: rgba(158, 207, 212, 0.25);
+  --color-success-bg: rgba(34, 197, 94, 0.08);
+  --color-error-bg: rgba(239, 68, 68, 0.08);
+
+  /* Spacing scale — multiples of 4px only */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-sm: 14px;
+  --font-size-body: 16px;
+  --font-size-h3: 20px;
+  --font-size-h2: 24px;
+  --font-size-h1: 32px;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* Shadow */
+  --shadow-card: 0 1px 3px rgba(1, 107, 97, 0.08);
+  --shadow-card-hover: 0 8px 20px rgba(1, 107, 97, 0.12);
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  margin: 0;
+}
