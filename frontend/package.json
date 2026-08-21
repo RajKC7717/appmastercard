@@ -10,10 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+<<<<<<< HEAD
     "lucide-react": "^0.475.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.1.5"
+=======
+    "lucide-react": "^1.33.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1"
+>>>>>>> bc64df7ecae2db9898f4a5bbbcd80102f4e46de0
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
