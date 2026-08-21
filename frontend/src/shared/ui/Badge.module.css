@@ -1,0 +1,211 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ---- Feedback needed — the one thing on the page that must be acted on
+   today, so it is the one badge that moves. The pulse is slow and shallow:
+   enough to catch the eye on a scroll, not enough to nag while reading. -- */
+
+.needed {
+  background: var(--color-error-wash);
+  color: #b3261e;
+  border-color: rgba(239, 68, 68, 0.4);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+.needed .dot {
+  animation: blink 2.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.85);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Motion is decoration here — the word and the colour already carry it. */
+@media (prefers-reduced-motion: reduce) {
+  .needed,
+  .needed .dot {
+    animation: none;
+  }
+}
+
+.done {
+  background: var(--color-primary-wash);
+  color: var(--color-primary);
+  border-color: rgba(1, 107, 97, 0.2);
+}
+
+.registered {
+  background: var(--color-success-wash);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.full {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.upcoming {
+  background: var(--color-tint-wash);
+  color: var(--color-primary);
+  border-color: var(--color-tint);
+}
+
+.past,
+.neutral {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.urgent {
+  background: var(--color-error-wash);
+  color: #b3261e;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.open {
+  background: var(--color-accent-wash);
+  color: #6b5d00;
+  border-color: rgba(160, 140, 0, 0.28);
+}
+
+.resolved {
+  background: var(--color-success-wash);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+/* ---- Console tones -------------------------------------------------
+   Added for the admin and SPOC consoles. Same rule as the volunteer
+   tones above: a colour means one thing everywhere, and the word is
+   always beside it — colour is never the only carrier of the status. */
+
+.ongoing {
+  background: var(--color-primary-wash);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.ongoing .dot {
+  background: var(--color-primary);
+}
+
+.registration {
+  background: var(--color-accent-wash);
+  color: var(--color-accent-ink);
+  border-color: rgba(160, 140, 0, 0.28);
+}
+
+.cancelled {
+  background: var(--color-error-wash);
+  color: var(--color-error-ink);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.attended {
+  background: var(--color-success-wash);
+  color: var(--color-success-ink);
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.absent {
+  background: var(--color-bg);
+  color: var(--color-error-ink);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.negative {
+  background: var(--color-error-wash);
+  color: var(--color-error-ink);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.positive {
+  background: var(--color-success-wash);
+  color: var(--color-success-ink);
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.live {
+  background: var(--color-tint-wash);
+  color: var(--color-primary);
+  border-color: var(--color-tint);
+}
+
+/* ---- Action-plan tones ---------------------------------------------
+   The MoSCoW buckets the action plan sorts its items into, plus the two
+   generic outcome tones the email-delivery strip uses. */
+
+.must {
+  background: var(--color-error-wash);
+  color: var(--color-error-ink);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.should {
+  background: var(--color-accent-wash);
+  color: var(--color-accent-ink);
+  border-color: rgba(160, 140, 0, 0.28);
+}
+
+.could,
+.watch {
+  background: var(--color-tint-wash);
+  color: var(--color-primary);
+  border-color: var(--color-tint);
+}
+
+.success {
+  background: var(--color-success-wash);
+  color: var(--color-success-ink);
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.error {
+  background: var(--color-error-wash);
+  color: var(--color-error-ink);
+  border-color: rgba(239, 68, 68, 0.3);
+}

@@ -1,0 +1,22 @@
+.track {
+  height: 8px;
+  width: 100%;
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  transition: width var(--transition-slow);
+}
+
+.warn {
+  background: var(--color-error);
+}
+
+.good {
+  background: var(--color-success);
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Mail, Sparkles } from 'lucide-react';
-import Button from '../ui/Button.jsx';
+import Button from '../../../shared/ui/Button.jsx';
 import { closedLoop } from '../../data/demoData.js';
 import { maskEmail } from '../../lib/format.js';
 import styles from './SuccessDialog.module.css';

@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import EventCard from '../components/EventCard.jsx';
-import { EmptyState, EventCardSkeleton } from '../components/ui/States.jsx';
-import Button from '../components/ui/Button.jsx';
+import { EmptyState, EventCardSkeleton } from '../../shared/ui/States.jsx';
+import Button from '../../shared/ui/Button.jsx';
 import EVENT_FILTERS from '../data/eventFilters.js';
 import { useVolunteer } from '../state/VolunteerProvider.jsx';
 import styles from './EventsPage.module.css';

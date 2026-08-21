@@ -1,7 +1,7 @@
-<<<<<<< HEAD
 /* ============================================================
    SEVA SAHAYOG — DESIGN TOKENS
-   Single source of truth. Values come from skills/design.md.
+   Single source of truth for all three role apps (Volunteer,
+   NGO Admin, Corporate SPOC). Values come from skills/design.md.
    Every *.module.css references these with var(--token).
    No component may hardcode a hex value or an off-scale px value.
    ============================================================ */
@@ -26,6 +26,12 @@
 
   --color-success: #22c55e;
   --color-error: #ef4444;
+
+  /* Readable foregrounds for tinted status surfaces, so a status word
+     never sits at 3:1 contrast on its own wash. */
+  --color-error-ink: #b3261e;
+  --color-success-ink: #15803d;
+  --color-accent-ink: #6b5d00;
 
   /* Derived, low-opacity washes. Kept here so no component invents one. */
   --color-primary-wash: rgba(1, 107, 97, 0.08);
@@ -53,43 +59,12 @@
   --line-height-body: 1.5;
 
   /* ---- Spacing — multiples of 4 only -------------------------- */
-=======
-/* Shared design tokens as CSS custom properties.
-   Values per DESIGN.md — SevaSahayog Volunteer Experience Platform.
-   Import this file ONCE globally (in index.css),
-   then every component's .module.css file can use var(--color-primary) etc. */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-
-:root {
-  /* Colors */
-  --color-primary: #016B61;
-  --color-primary-hover: #01524A;
-  --color-secondary: #70B2B2;
-  --color-accent: #E5E9C5;
-  --color-tint: #9ECFD4;
-  --color-background: #F5F9F8;
-  --color-surface: #FFFFFF;
-  --color-text-primary: #10241F;
-  --color-text-muted: #4B6B66;
-  --color-border: #DCEAE8;
-  --color-success: #22c55e;
-  --color-error: #ef4444;
-
-  /* Low-opacity tints of the tokens above — for banner/badge backgrounds. */
-  --color-tint-bg: rgba(158, 207, 212, 0.25);
-  --color-success-bg: rgba(34, 197, 94, 0.08);
-  --color-error-bg: rgba(239, 68, 68, 0.08);
-
-  /* Spacing scale — multiples of 4px only */
->>>>>>> bc64df7ecae2db9898f4a5bbbcd80102f4e46de0
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
-<<<<<<< HEAD
   --space-12: 48px;
   --space-16: 64px;
 
@@ -107,6 +82,7 @@
   /* ---- Layout ------------------------------------------------- */
   --width-volunteer: 480px; /* single-task flows centre at 480px */
   --width-portal: 1120px; /* the logged-in volunteer portal    */
+  --width-console: 1280px; /* admin + SPOC consoles, denser data */
   --height-navbar: 64px;
   --height-tabbar: 64px;
   --height-touch: 48px; /* minimum touch target */
@@ -119,6 +95,19 @@
   --z-navbar: 100;
   --z-tabbar: 100;
   --z-dialog: 200;
+
+  /* ---- Legacy aliases ----------------------------------------
+     The first NGO Admin screens were written against an earlier
+     token spelling. Kept as aliases so no stray file silently
+     falls back to an unstyled default. Prefer the names above. */
+  --font-family: var(--font-sans);
+  --color-background: var(--color-bg);
+  --color-text-primary: var(--color-text);
+  --color-tint-bg: var(--color-tint-wash);
+  --color-success-bg: var(--color-success-wash);
+  --color-error-bg: var(--color-error-wash);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -126,32 +115,4 @@
     --transition: 1ms linear;
     --transition-slow: 1ms linear;
   }
-=======
-
-  /* Typography */
-  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-size-sm: 14px;
-  --font-size-body: 16px;
-  --font-size-h3: 20px;
-  --font-size-h2: 24px;
-  --font-size-h1: 32px;
-  --font-weight-regular: 400;
-  --font-weight-semibold: 600;
-
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-
-  /* Shadow */
-  --shadow-card: 0 1px 3px rgba(1, 107, 97, 0.08);
-  --shadow-card-hover: 0 8px 20px rgba(1, 107, 97, 0.12);
-}
-
-body {
-  font-family: var(--font-family);
-  font-weight: var(--font-weight-regular);
-  color: var(--color-text-primary);
-  background: var(--color-background);
-  margin: 0;
->>>>>>> bc64df7ecae2db9898f4a5bbbcd80102f4e46de0
 }

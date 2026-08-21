@@ -1,0 +1,26 @@
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.filled {
+  fill: var(--color-accent);
+  stroke: var(--color-primary);
+}
+
+.empty {
+  fill: none;
+  stroke: var(--color-border);
+}

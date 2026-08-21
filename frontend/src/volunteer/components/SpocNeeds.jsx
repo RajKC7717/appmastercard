@@ -8,8 +8,8 @@ import {
   ShieldAlert,
   Wrench,
 } from 'lucide-react';
-import Badge from './ui/Badge.jsx';
-import Button from './ui/Button.jsx';
+import Badge from '../../shared/ui/Badge.jsx';
+import Button from '../../shared/ui/Button.jsx';
 import { needCategories } from '../data/demoData.js';
 import { submitNeed } from '../lib/api.js';
 import { formatShortDate, formatSubmittedAt } from '../lib/format.js';

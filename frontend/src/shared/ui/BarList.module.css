@@ -1,0 +1,148 @@
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+
+.trackWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.track {
+  flex: 1;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  transition: width var(--transition-slow);
+}
+
+.default {
+  background: var(--color-primary);
+}
+
+.warn {
+  background: var(--color-error);
+}
+
+.good {
+  background: var(--color-success);
+}
+
+.value {
+  flex-shrink: 0;
+  min-width: 92px;
+  text-align: right;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.caption {
+  padding-left: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Sentiment split ---- */
+
+.split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 160px;
+}
+
+.splitBar {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.splitNegative {
+  background: var(--color-error);
+}
+
+.splitNeutral {
+  background: var(--color-secondary);
+}
+
+.splitPositive {
+  background: var(--color-success);
+}
+
+.splitCounts {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.negativeText {
+  color: var(--color-error-ink);
+}
+
+.positiveText {
+  color: var(--color-success-ink);
+}
+
+.noData {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 640px) {
+  .row {
+    grid-template-columns: 220px 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media print {
+  .fill,
+  .splitNegative,
+  .splitNeutral,
+  .splitPositive {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

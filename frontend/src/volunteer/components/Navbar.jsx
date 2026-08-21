@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronDown, Home, MessageSquareText, User } from 'lucide-react';
-import Logo from './Logo.jsx';
+import Logo from '../../shared/ui/Logo.jsx';
 import EventsMenu from './EventsMenu.jsx';
 import styles from './Navbar.module.css';
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarX, CheckCircle2, Link2Off, Send } from 'lucide-react';
-import Logo from '../components/Logo.jsx';
-import Button from '../components/ui/Button.jsx';
-import { EmptyState, Skeleton } from '../components/ui/States.jsx';
+import Logo from '../../shared/ui/Logo.jsx';
+import Button from '../../shared/ui/Button.jsx';
+import { EmptyState, Skeleton } from '../../shared/ui/States.jsx';
 import ProgressRule from '../components/feedback/ProgressRule.jsx';
 import QuestionCard from '../components/feedback/QuestionCard.jsx';
 import FixedActivityField from '../components/feedback/FixedActivityField.jsx';

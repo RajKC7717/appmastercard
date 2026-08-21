@@ -13,8 +13,8 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import Badge from './ui/Badge.jsx';
-import Button from './ui/Button.jsx';
+import Badge from '../../shared/ui/Badge.jsx';
+import Button from '../../shared/ui/Button.jsx';
 import { useVolunteer } from '../state/VolunteerProvider.jsx';
 import { formatShortDate, formatTimeRange, relativeDay } from '../lib/format.js';
 import styles from './EventCard.module.css';

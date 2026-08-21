@@ -1,7 +1,7 @@
 import { MessageSquareText } from 'lucide-react';
 import FeedbackRecord from '../components/FeedbackRecord.jsx';
-import { EmptyState, Skeleton } from '../components/ui/States.jsx';
-import Button from '../components/ui/Button.jsx';
+import { EmptyState, Skeleton } from '../../shared/ui/States.jsx';
+import Button from '../../shared/ui/Button.jsx';
 import { useVolunteer } from '../state/VolunteerProvider.jsx';
 import { LOW_RATING_THRESHOLD } from '../data/questions.js';
 import styles from './HistoryPage.module.css';

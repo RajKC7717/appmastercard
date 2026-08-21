@@ -6,6 +6,7 @@ import {
   getVolunteer,
   registerForEvent,
 } from '../lib/api.js';
+import { useAuth } from '../../auth/AuthProvider.jsx';
 
 const VolunteerContext = createContext(null);
 
@@ -18,6 +19,7 @@ const VolunteerContext = createContext(null);
  * new record without a full page refresh.
  */
 export function VolunteerProvider({ children }) {
+  const { user } = useAuth();
   const [state, setState] = useState({
     status: 'loading',
     volunteer: null,
@@ -40,9 +42,25 @@ export function VolunteerProvider({ children }) {
         getFeedbackHistory(),
         getNeeds(),
       ]);
+      /* The identity comes from the signed-in session, not from the demo
+         file — sign in as someone else and the portal greets THEM. The
+         activities and history around it are still the Amdocs sample
+         dataset this build ships with; only the person changes. */
+      const identity = user
+        ? {
+            volunteerId: user.userId,
+            volunteerName: user.name,
+            shortName: user.shortName,
+            initials: user.initials,
+            volunteerEmail: user.email,
+            volunteerPhone: user.phone ?? me.data.volunteerPhone,
+            corporatePartner: user.companyName ?? me.data.corporatePartner,
+          }
+        : {};
+
       setState({
         status: 'loaded',
-        volunteer: me.data,
+        volunteer: { ...me.data, ...identity },
         activities: acts.data,
         feedback: history.data,
         needs: needs.data,
@@ -51,7 +69,7 @@ export function VolunteerProvider({ children }) {
     } catch (error) {
       setState((prev) => ({ ...prev, status: 'error', error: error.message }));
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     load();

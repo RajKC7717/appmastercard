@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navbar from './components/Navbar.jsx';
-import { ErrorState } from './components/ui/States.jsx';
+import { ErrorState } from '../shared/ui/States.jsx';
 import { useVolunteer } from './state/VolunteerProvider.jsx';
 import { volunteer as fallbackVolunteer } from './data/demoData.js';
 import styles from './VolunteerLayout.module.css';

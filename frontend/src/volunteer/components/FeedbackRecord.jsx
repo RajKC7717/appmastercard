@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, CalendarDays, ChevronDown, MapPin } from 'lucide-react';
-import Badge from './ui/Badge.jsx';
+import Badge from '../../shared/ui/Badge.jsx';
 import {
   FACES,
   GROUPS,

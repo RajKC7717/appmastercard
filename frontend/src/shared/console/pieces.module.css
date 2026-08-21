@@ -1,0 +1,365 @@
+/* Shared console pieces: the feedback card and the activity card, used by
+   both the admin and the SPOC apps so one record looks the same wherever
+   it is opened. */
+
+/* ---- Feedback card ---------------------------------------------------- */
+
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.feedbackHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-tint-wash);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.feedbackWho {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedbackName {
+  font-weight: var(--font-weight-semibold);
+}
+
+.feedbackMeta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.feedbackLink {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.feedbackLink:hover {
+  text-decoration: underline;
+}
+
+.feedbackScore {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.reference {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.feedbackBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.feedbackBadges:empty {
+  display: none;
+}
+
+/* The verbatim comment. Given real weight on the page, because it is the
+   thing the Foundation says it cannot retrieve today. */
+.quote {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-tint);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.quoteMark {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-secondary);
+}
+
+.noComment {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.lowList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-error-wash);
+  border-radius: var(--radius-sm);
+}
+
+.lowRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lowTheme {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-error-ink);
+}
+
+.lowValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.lowReason {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.insightsTitle {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.chipNegative {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: var(--color-error-wash);
+}
+
+.chipTheme {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.chipSentiment {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.chipEvidence {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ---- Activity card ---------------------------------------------------- */
+
+.eventCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.eventHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.eventTitle {
+  font-size: var(--font-size-h3);
+}
+
+.eventLink {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.eventLink:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.eventType {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.eventBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.eventMeta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.eventMetaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.eventIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-secondary);
+}
+
+.eventProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.eventProgressText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 640px) {
+  .eventMeta {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---- Theme explorer --------------------------------------------------- */
+
+.themeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--height-touch);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.themeRow:hover {
+  border-color: var(--color-primary);
+  background: var(--color-tint-wash);
+}
+
+.themeRowActive,
+.themeRowActive:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-wash);
+}
+
+.themeName {
+  min-width: 180px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.themeCount {
+  min-width: 96px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.evidenceRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.evidenceHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.evidenceText,
+.evidenceNegative {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.evidenceTone {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+.evidenceNegative .evidenceTone {
+  color: var(--color-error-ink);
+}

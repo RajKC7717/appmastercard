@@ -4,13 +4,15 @@ import {
   Building2,
   Clock3,
   Languages,
+  LogOut,
   Mail,
   MapPin,
   Phone,
   RotateCcw,
 } from 'lucide-react';
-import Button from '../components/ui/Button.jsx';
-import { Skeleton } from '../components/ui/States.jsx';
+import Button from '../../shared/ui/Button.jsx';
+import { useAuth } from '../../auth/AuthProvider.jsx';
+import { Skeleton } from '../../shared/ui/States.jsx';
 import { useVolunteer } from '../state/VolunteerProvider.jsx';
 import { LANGUAGES } from '../data/questions.js';
 import { loadLanguage, resetDemoState, saveLanguage } from '../lib/storage.js';
@@ -25,6 +27,7 @@ import styles from './ProfilePage.module.css';
  * relies on. The one thing they DO control is language.
  */
 export default function ProfilePage() {
+  const { signOut } = useAuth();
   const { volunteer, status, feedback, activities, reload } = useVolunteer();
   const [language, setLanguage] = useState(() => loadLanguage('EN'));
   const [resetDone, setResetDone] = useState(false);
@@ -147,6 +150,22 @@ export default function ProfilePage() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Signing out lives here rather than in the navbar. The navbar has
+          four destinations and a fifth control on it would compete with
+          them; this is the one screen that is about the person. */}
+      <section className={styles.card} aria-labelledby="session-heading">
+        <h2 id="session-heading" className={styles.cardTitle}>
+          Your session
+        </h2>
+        <p className={styles.cardCaption}>
+          Signed in as {person.volunteerEmail}. Signing out keeps everything you have already
+          submitted — it is stored against your activity, not against this device.
+        </p>
+        <Button variant="secondary" icon={LogOut} onClick={signOut}>
+          Sign out
+        </Button>
       </section>
 
       <section className={styles.demoCard} aria-labelledby="demo-heading">
