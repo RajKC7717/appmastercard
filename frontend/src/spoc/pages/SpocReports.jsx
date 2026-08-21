@@ -3,7 +3,7 @@ import { Download, Printer } from 'lucide-react';
 import Button from '../../shared/ui/Button.jsx';
 import BarList from '../../shared/ui/BarList.jsx';
 import DataTable, { nextSort, sortRows } from '../../shared/ui/DataTable.jsx';
-import { TextInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import ThemeAverages from '../../shared/console/ThemeAverages.jsx';
@@ -43,8 +43,7 @@ export default function SpocReports() {
   const [range, setRange] = useState({ from: '2026-05-01', to: '2026-08-31' });
   const [sort, setSort] = useState({ key: 'eventDate', direction: 'desc' });
 
-  const change = (key) => (event) =>
-    setRange((current) => ({ ...current, [key]: event.target.value }));
+  const changeDates = (patch) => setRange((current) => ({ ...current, ...patch }));
 
   const events = useMemo(
     () => summarised.filter((event) => withinRange(event.eventDate, range.from, range.to)),
@@ -150,18 +149,7 @@ export default function SpocReports() {
       </header>
 
       <section className={`${styles.filters} ${styles.noPrint}`} aria-label="Report period">
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="sr-from">
-            From
-          </label>
-          <TextInput id="sr-from" type="date" value={range.from} onChange={change('from')} />
-        </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="sr-to">
-            To
-          </label>
-          <TextInput id="sr-to" type="date" value={range.to} onChange={change('to')} />
-        </div>
+        <DateRangeFilter idPrefix="sr" from={range.from} to={range.to} onChange={changeDates} />
       </section>
 
       {status === 'loading' ? (
@@ -233,6 +221,7 @@ export default function SpocReports() {
             </div>
             <DataTable
               caption="Activities in the reporting period"
+              summary="activities in this period. Every number above is the sum of these rows."
               columns={columns}
               rows={sorted}
               getRowKey={(row) => row.eventId}

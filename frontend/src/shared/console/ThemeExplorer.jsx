@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Tags } from 'lucide-react';
+import { ChevronDown, Tags } from 'lucide-react';
 import Badge from '../ui/Badge.jsx';
-import Button from '../ui/Button.jsx';
 import { SentimentSplit } from '../ui/BarList.jsx';
 import { EmptyState } from '../ui/States.jsx';
 import {
@@ -17,16 +16,23 @@ import pieces from './pieces.module.css';
 
 /**
  * Theme discovery — problem statement C, and the half of the deep
- * challenge that a survey alone does not solve.
+ * challenge a survey alone does not solve.
  *
  * The ranking is by NEGATIVE volume, not by total mentions. A theme
  * thirty people praised is reassuring; a theme fifteen people complained
  * about is a decision waiting to be made, and the Foundation opened this
  * page to find the second kind.
  *
- * Selecting a theme shows the exact fragments behind it. That is the
- * whole argument for classification being trustworthy: a label with no
- * evidence is an assertion, and no coordinator should act on one.
+ * EACH THEME IS A DISCLOSURE, NOT A DIALOG. Opening one expands the
+ * evidence underneath it, in place, and clicking the same row again
+ * collapses it. There is deliberately no Close button: a Close implies
+ * something opened over the top of the list and has to be dismissed
+ * before you can carry on, which is not what happened. Collapsing back
+ * into the row you opened keeps your place in a list you were scanning.
+ *
+ * The open theme lives in the URL, so a link to a specific theme opens on
+ * that theme, and the browser Back button collapses it rather than
+ * leaving the page.
  *
  * Shared by the NGO admin (all partners) and the corporate SPOC (their
  * own company only) — the difference is entirely in the `feedback` passed
@@ -34,37 +40,40 @@ import pieces from './pieces.module.css';
  */
 export default function ThemeExplorer({ feedback, feedbackPath, title, caption }) {
   const [params, setParams] = useSearchParams();
-  const selected = params.get('theme') ?? '';
+  const open = params.get('theme') ?? '';
 
   const insights = useMemo(() => feedback.flatMap((row) => row.insights ?? []), [feedback]);
   const summary = useMemo(() => summariseThemes(insights), [insights]);
 
-  const select = (theme) => {
+  const toggle = (theme) => {
     const next = new URLSearchParams(params);
-    if (theme && theme !== selected) next.set('theme', theme);
-    else next.delete('theme');
+    if (theme === open) next.delete('theme');
+    else next.set('theme', theme);
     setParams(next, { replace: true });
   };
 
-  const active = summary.find((row) => row.theme === selected) ?? null;
+  /* Every submission that produced an insight for a theme, so the
+     evidence links back to a whole response and not just a fragment. */
+  const evidenceFor = useMemo(() => {
+    const byTheme = new Map();
+    feedback.forEach((row) => {
+      (row.insights ?? []).forEach((insight) => {
+        const bucket = byTheme.get(insight.detectedTheme) ?? new Map();
+        const entry = bucket.get(row.feedbackId) ?? { row, hits: [] };
+        entry.hits.push(insight);
+        bucket.set(row.feedbackId, entry);
+        byTheme.set(insight.detectedTheme, bucket);
+      });
+    });
 
-  /* Every comment that produced an insight for the selected theme, so the
-     evidence links back to a whole submission and not just a fragment. */
-  const evidence = useMemo(() => {
-    if (!active) return [];
-    return feedback
-      .filter((row) => (row.insights ?? []).some((insight) => insight.detectedTheme === active.theme))
-      .map((row) => ({
-        row,
-        hits: row.insights.filter((insight) => insight.detectedTheme === active.theme),
-      }))
-      .sort((a, b) => {
+    return (theme) =>
+      [...(byTheme.get(theme)?.values() ?? [])].sort((a, b) => {
         const aNegative = a.hits.some((hit) => NEGATIVE_SENTIMENTS.includes(hit.sentiment));
         const bNegative = b.hits.some((hit) => NEGATIVE_SENTIMENTS.includes(hit.sentiment));
         if (aNegative !== bNegative) return aNegative ? -1 : 1;
         return new Date(b.row.submittedAt) - new Date(a.row.submittedAt);
       });
-  }, [active, feedback]);
+  }, [feedback]);
 
   if (summary.length === 0) {
     return (
@@ -80,113 +89,117 @@ export default function ThemeExplorer({ feedback, feedbackPath, title, caption }
   const top = summary[0];
 
   return (
-    <div className={styles.stack}>
-      <section className={styles.card} aria-labelledby="theme-list-heading">
-        <div className={styles.cardHead}>
-          <div>
-            <h2 id="theme-list-heading" className={styles.cardTitle}>
-              {title ?? 'Recurring themes'}
-            </h2>
-            <p className={styles.cardCaption}>
-              {caption ??
-                'Every written comment, broken into the aspects it mentions and how it felt about each one. Ranked by how often an aspect came up negatively.'}
-            </p>
-          </div>
+    <section className={styles.card} aria-labelledby="theme-list-heading">
+      <div className={styles.cardHead}>
+        <div>
+          <h2 id="theme-list-heading" className={styles.cardTitle}>
+            {title ?? 'Recurring themes'}
+          </h2>
+          <p className={styles.cardCaption}>
+            {caption ??
+              'Every written comment, broken into the aspects it mentions and how it felt about each one. Ranked by how often an aspect came up negatively — open one to read the words behind it.'}
+          </p>
         </div>
+      </div>
 
-        <ul className={styles.stackTight}>
-          {summary.map((row) => {
-            const isActive = row.theme === selected;
-            return (
-              <li key={row.theme}>
-                <button
-                  type="button"
-                  className={`${pieces.themeRow} ${isActive ? pieces.themeRowActive : ''}`}
-                  aria-pressed={isActive}
-                  onClick={() => select(row.theme)}
-                >
-                  <span className={pieces.themeName}>{INSIGHT_THEMES[row.theme] ?? row.theme}</span>
-                  <span className={pieces.themeCount}>
-                    {row.total} {row.total === 1 ? 'mention' : 'mentions'}
-                  </span>
-                  <SentimentSplit
-                    negative={row.negative}
-                    neutral={row.neutral}
-                    positive={row.positive}
-                  />
-                  {row.negative >= 3 && row.negativeShare >= 50 && <Badge tone="urgent" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      <ul className={styles.stackTight}>
+        {summary.map((row) => {
+          const expanded = row.theme === open;
+          const panelId = `theme-panel-${row.theme}`;
+          const evidence = expanded ? evidenceFor(row.theme) : [];
 
-        <p className={styles.finding}>
-          {totalNegative === 0
-            ? `Nothing negative has been raised yet across ${insights.length} detected aspects.`
-            : `${top.negative} of the ${totalNegative} negative mentions are about ${
-                INSIGHT_THEMES[top.theme]
-              } — it is the single biggest source of complaint, and fixing it moves more volunteers than anything else on this list.`}
-        </p>
-      </section>
+          return (
+            <li key={row.theme} className={pieces.themeItem}>
+              <button
+                type="button"
+                className={`${pieces.themeRow} ${expanded ? pieces.themeRowActive : ''}`}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                onClick={() => toggle(row.theme)}
+              >
+                <ChevronDown
+                  className={`${pieces.themeChevron} ${expanded ? pieces.themeChevronOpen : ''}`}
+                  aria-hidden="true"
+                />
+                <span className={pieces.themeName}>
+                  {INSIGHT_THEMES[row.theme] ?? row.theme}
+                </span>
+                <span className={pieces.themeCount}>
+                  {row.total} {row.total === 1 ? 'mention' : 'mentions'}
+                </span>
+                <SentimentSplit
+                  negative={row.negative}
+                  neutral={row.neutral}
+                  positive={row.positive}
+                />
+                {row.negative >= 3 && row.negativeShare >= 50 && <Badge tone="urgent" />}
+              </button>
 
-      {active && (
-        <section className={styles.card} aria-labelledby="evidence-heading">
-          <div className={styles.cardHead}>
-            <div>
-              <h2 id="evidence-heading" className={styles.cardTitle}>
-                {INSIGHT_THEMES[active.theme]} — what volunteers actually said
-              </h2>
-              <p className={styles.cardCaption}>
-                {active.total} mentions · {active.negative} negative · {active.positive} positive.
-                Every line below is a fragment of a real submission.
-              </p>
-            </div>
-            <Button variant="secondary" onClick={() => select('')}>
-              Close
-            </Button>
-          </div>
+              {expanded && (
+                <div id={panelId} className={pieces.themePanel}>
+                  <p className={pieces.themePanelHead}>
+                    {row.negative} negative · {row.neutral} neutral · {row.positive} positive.
+                    Every line below is a fragment of a real submission.
+                  </p>
 
-          <ul className={styles.stackTight}>
-            {evidence.slice(0, 12).map(({ row, hits }) => (
-              <li key={row.feedbackId} className={pieces.evidenceRow}>
-                <div className={pieces.evidenceHead}>
-                  <strong>{row.volunteerName}</strong>
-                  <span className={styles.muted}>
-                    {row.eventName} · {row.companyName} · {timeAgo(row.submittedAt)}
-                  </span>
-                  <span className={styles.spacer} />
-                  {feedbackPath && (
-                    <Link to={`${feedbackPath}?q=${encodeURIComponent(row.reference)}`} className={styles.backLink}>
-                      {row.reference}
-                    </Link>
+                  <ul className={styles.stackTight}>
+                    {evidence.slice(0, 12).map(({ row: record, hits }) => (
+                      <li key={record.feedbackId} className={pieces.evidenceRow}>
+                        <div className={pieces.evidenceHead}>
+                          <strong>{record.volunteerName}</strong>
+                          <span className={styles.muted}>
+                            {record.eventName} · {record.companyName} ·{' '}
+                            {timeAgo(record.submittedAt)}
+                          </span>
+                          <span className={styles.spacer} />
+                          {feedbackPath && (
+                            <Link
+                              to={`${feedbackPath}?q=${encodeURIComponent(record.reference)}`}
+                              className={styles.backLink}
+                            >
+                              {record.reference}
+                            </Link>
+                          )}
+                        </div>
+                        {hits.map((hit) => (
+                          <p
+                            key={hit.insightId}
+                            className={
+                              NEGATIVE_SENTIMENTS.includes(hit.sentiment)
+                                ? pieces.evidenceNegative
+                                : pieces.evidenceText
+                            }
+                          >
+                            <span className={pieces.evidenceTone}>
+                              {SENTIMENT_LABEL[hit.sentiment]}
+                            </span>
+                            &ldquo;{hit.evidenceText}&rdquo;
+                          </p>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {evidence.length > 12 && (
+                    <p className={styles.muted}>
+                      Showing the 12 most relevant of {evidence.length}. The rest are in
+                      Feedback, filtered by this theme.
+                    </p>
                   )}
                 </div>
-                {hits.map((hit) => (
-                  <p
-                    key={hit.insightId}
-                    className={
-                      NEGATIVE_SENTIMENTS.includes(hit.sentiment)
-                        ? pieces.evidenceNegative
-                        : pieces.evidenceText
-                    }
-                  >
-                    <span className={pieces.evidenceTone}>{SENTIMENT_LABEL[hit.sentiment]}</span>
-                    “{hit.evidenceText}”
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
-          {evidence.length > 12 && (
-            <p className={styles.muted}>
-              Showing the 12 most relevant of {evidence.length}. The rest are in Feedback,
-              filtered by this theme.
-            </p>
-          )}
-        </section>
-      )}
-    </div>
+      <p className={styles.finding}>
+        {totalNegative === 0
+          ? `Nothing negative has been raised yet across ${insights.length} detected aspects.`
+          : `${top.negative} of the ${totalNegative} negative mentions are about ${
+              INSIGHT_THEMES[top.theme]
+            } — it is the single biggest source of complaint, and fixing it moves more volunteers than anything else on this list.`}
+      </p>
+    </section>
   );
 }

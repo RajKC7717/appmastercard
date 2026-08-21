@@ -142,6 +142,7 @@ export default function AdminPartners() {
         <>
           <DataTable
             caption="Corporate partners"
+            summary="corporate partners, ordered by the column you last sorted on."
             columns={columns}
             rows={sorted}
             getRowKey={(row) => row.companyId}

@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, MessageSquareX } from 'lucide-react';
 import Button from '../../shared/ui/Button.jsx';
-import { SearchInput, SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SearchInput, SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import FeedbackCard from '../../shared/console/FeedbackCard.jsx';
@@ -51,10 +52,14 @@ export default function AdminFeedback() {
     filters[key] = params.get(key) ?? '';
   });
 
-  const setFilter = (key, value) => {
+  const setFilter = (key, value) => setFilters({ [key]: value });
+
+  const setFilters = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
     setParams(next, { replace: true });
   };
 
@@ -189,29 +194,14 @@ export default function AdminFeedback() {
           />
         </div>
 
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="f-from">
-            Submitted from
-          </label>
-          <TextInput
-            id="f-from"
-            type="date"
-            value={filters.from}
-            onChange={(event) => setFilter('from', event.target.value)}
-          />
-        </div>
-
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="f-to">
-            Submitted to
-          </label>
-          <TextInput
-            id="f-to"
-            type="date"
-            value={filters.to}
-            onChange={(event) => setFilter('to', event.target.value)}
-          />
-        </div>
+        <DateRangeFilter
+          idPrefix="f"
+          from={filters.from}
+          to={filters.to}
+          onChange={setFilters}
+          fromLabel="Submitted from"
+          toLabel="Submitted to"
+        />
       </section>
 
       <div className={styles.filterSummary}>

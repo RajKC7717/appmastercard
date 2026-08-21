@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -9,6 +9,7 @@ import {
   MapPin,
   Pencil,
   Sparkles,
+  Trash2,
   UserCircle2,
   Users,
 } from 'lucide-react';
@@ -22,10 +23,10 @@ import ThemeAverages from '../../shared/console/ThemeAverages.jsx';
 import { useConsoleData } from '../../shared/console/ConsoleDataProvider.jsx';
 import ActivityFormDialog from '../components/ActivityFormDialog.jsx';
 import AttendanceSheet from '../components/AttendanceSheet.jsx';
-import { ACTION_PLAN_FOR_EVENT } from '../data/actionPlanIndex.js';
+import DeleteActivityDialog from '../components/DeleteActivityDialog.jsx';
 import { EVENT_STATUSES, STATUS_LABEL, THEME_CODES, THEME_LABEL } from '../../shared/data/orgData.js';
 import { FEEDBACK_COLUMNS, downloadCsv, reportFilename } from '../../shared/lib/exports.js';
-import { formatDate, formatTimeRange } from '../../shared/lib/date.js';
+import { formatDate, formatDateTime, formatTimeRange } from '../../shared/lib/date.js';
 import styles from '../../shared/console/console.module.css';
 
 /**
@@ -41,6 +42,7 @@ import styles from '../../shared/console/console.module.css';
  */
 export default function AdminActivityDetail() {
   const { activityId } = useParams();
+  const navigate = useNavigate();
   const { notify } = useToast();
   const {
     status,
@@ -51,9 +53,15 @@ export default function AdminActivityDetail() {
     companies,
     updateEvent,
     setEventStatus,
+    deleteEvent,
+    planFor,
+    planStateFor,
+    createPlan,
   } = useConsoleData();
 
   const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [planBusy, setPlanBusy] = useState(false);
 
   const event = findEvent(activityId);
   const feedback = feedbackForEvent(activityId);
@@ -105,14 +113,22 @@ export default function AdminActivityDetail() {
   };
 
   const saveEdits = async (payload) => {
+    const feedbackStart = `${payload.eventDate}T${payload.endTime}:00+05:30`;
     const result = await updateEvent(event.eventId, {
       eventName: payload.eventName.trim(),
       activityType: payload.activityType,
       eventDate: `${payload.eventDate}T${payload.startTime}:00+05:30`,
       startTime: payload.startTime,
       endTime: payload.endTime,
-      feedbackStart: `${payload.eventDate}T${payload.endTime}:00+05:30`,
-      feedbackEnd: `${payload.eventDate}T23:59:00+05:30`,
+      feedbackStart,
+      /* Kept as a duration, then resolved to an instant — so the window
+         always satisfies feedbackStart < feedbackEnd whatever time the
+         activity ends at. A fixed midnight close broke that for anything
+         finishing after 23:59. */
+      feedbackHours: payload.feedbackHours,
+      feedbackEnd: new Date(
+        new Date(feedbackStart).getTime() + payload.feedbackHours * 3_600_000,
+      ).toISOString(),
       location: payload.location.trim(),
       area: payload.area,
       volunteersNeeded: payload.volunteersNeeded,
@@ -136,8 +152,39 @@ export default function AdminActivityDetail() {
     notify({ message: `${feedback.length} responses exported as CSV.`, tone: 'info' });
   };
 
-  const plan = ACTION_PLAN_FOR_EVENT[event.eventId];
+  const generatePlan = async () => {
+    setPlanBusy(true);
+    const result = await createPlan(event.eventId);
+    setPlanBusy(false);
+    notify(
+      result.ok
+        ? {
+            message: `Action plan ready for ${event.eventName}.`,
+            actionLabel: 'Open it',
+            action: () => navigate(`/admin/action-plans/${event.eventId}`),
+          }
+        : { message: result.error, tone: 'error' },
+    );
+  };
+
+  const removeActivity = async () => {
+    const result = await deleteEvent(event.eventId);
+    if (!result.ok) return result;
+    setConfirmingDelete(false);
+    notify({ message: `${event.eventName} deleted.` });
+    navigate('/admin/activities', { replace: true });
+    return result;
+  };
+
+  const plan = planFor(event.eventId);
+  const planState = planStateFor(event.eventId);
   const collecting = event.status === 'ONGOING';
+  /* Only a record created in this console, with nobody registered against
+     it, can be deleted outright. Everything else is cancelled instead —
+     the schema's RESTRICT foreign keys exist so a delete cannot orphan a
+     volunteer's feedback, and the UI should not offer what the database
+     would refuse. */
+  const deletable = Boolean(event.createdLocally) && event.volunteersRegistered === 0;
 
   return (
     <div className={styles.page}>
@@ -177,6 +224,11 @@ export default function AdminActivityDetail() {
           <Button variant="secondary" icon={Download} onClick={exportFeedback}>
             Export
           </Button>
+          {deletable && (
+            <Button variant="danger" icon={Trash2} onClick={() => setConfirmingDelete(true)}>
+              Delete
+            </Button>
+          )}
         </div>
       </header>
 
@@ -250,25 +302,56 @@ export default function AdminActivityDetail() {
               {event.volunteersRegistered} registered of {event.volunteersNeeded} needed
             </dd>
           </div>
+          <div className={styles.fact}>
+            <dt className={styles.factLabel}>
+              <Clock size={14} aria-hidden="true" /> Feedback window
+            </dt>
+            <dd className={styles.factValue}>
+              Opens when the activity ends, closes {formatDateTime(event.feedbackEnd)}
+            </dd>
+          </div>
         </dl>
       </section>
 
-      {plan && (
-        <section className={styles.card}>
-          <div className={styles.cardHead}>
-            <div>
-              <h2 className={styles.cardTitle}>
-                <Sparkles size={18} aria-hidden="true" /> Action plan
-              </h2>
-              <p className={styles.cardCaption}>
-                Generated from this activity&rsquo;s feedback — what to keep, what to fix, and
-                the checklist for the next one.
-              </p>
-            </div>
-            <Button to={`/admin/action-plans/${event.eventId}`}>Open action plan</Button>
+      <section className={styles.card}>
+        <div className={styles.cardHead}>
+          <div>
+            <h2 className={styles.cardTitle}>
+              <Sparkles size={18} aria-hidden="true" /> Action plan
+            </h2>
+            <p className={styles.cardCaption}>
+              {plan
+                ? `What to keep, what to fix, and the checklist for the next ${event.activityType.toLowerCase()} activity — built from the ${plan.responseCount} responses below.`
+                : planState.eligible
+                  ? `Feedback has closed. Analysing the ${event.comments} written comments returns what to keep, what to fix, and why.`
+                  : planState.reason}
+            </p>
           </div>
-        </section>
-      )}
+          {plan ? (
+            <Button to={`/admin/action-plans/${event.eventId}`}>Open action plan</Button>
+          ) : planState.eligible ? (
+            <Button icon={Sparkles} onClick={generatePlan} disabled={planBusy}>
+              {planBusy ? 'Analysing…' : 'Generate action plan'}
+            </Button>
+          ) : null}
+        </div>
+
+        {plan && (
+          <div className={styles.row}>
+            <Badge tone="must">
+              {plan.actionPlan.filter((item) => item.bucket === 'must').length} must have
+            </Badge>
+            <Badge tone="should">
+              {plan.actionPlan.filter((item) => item.bucket === 'should').length} should have
+            </Badge>
+            <span className={styles.muted}>
+              {plan.generatedAt
+                ? `Generated ${formatDateTime(plan.generatedAt)}`
+                : `Analysed ${plan.analysisDate}`}
+            </span>
+          </div>
+        )}
+      </section>
 
       <ThemeAverages feedback={feedback} />
 
@@ -311,6 +394,13 @@ export default function AdminActivityDetail() {
         onSubmit={saveEdits}
         companies={companies}
         initial={event}
+      />
+
+      <DeleteActivityDialog
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        onConfirm={removeActivity}
+        event={event}
       />
     </div>
   );

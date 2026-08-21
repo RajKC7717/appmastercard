@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import Button from '../../shared/ui/Button.jsx';
-import { SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { ErrorState, Skeleton } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import ThemeExplorer from '../../shared/console/ThemeExplorer.jsx';
@@ -30,10 +31,18 @@ export default function AdminThemes() {
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
 
-  const setFilter = (key, value) => {
+  const setFilter = (key, value) => setFilters({ [key]: value });
+
+  /* Takes a patch rather than a single key, because a date-range change
+     can legitimately move both ends at once — picking a From after the
+     current To carries To along with it instead of leaving an impossible
+     range that silently returns nothing. */
+  const setFilters = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
     setParams(next, { replace: true });
   };
 
@@ -93,28 +102,7 @@ export default function AdminThemes() {
             options={companies.map((row) => ({ value: row.companyId, label: row.companyName }))}
           />
         </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="t-from">
-            From
-          </label>
-          <TextInput
-            id="t-from"
-            type="date"
-            value={from}
-            onChange={(event) => setFilter('from', event.target.value)}
-          />
-        </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="t-to">
-            To
-          </label>
-          <TextInput
-            id="t-to"
-            type="date"
-            value={to}
-            onChange={(event) => setFilter('to', event.target.value)}
-          />
-        </div>
+        <DateRangeFilter idPrefix="t" from={from} to={to} onChange={setFilters} />
       </section>
 
       <div className={styles.filterSummary}>

@@ -81,7 +81,6 @@
 .count {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   padding: var(--space-6);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -89,15 +88,23 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The label reads FIRST and the number second, so the eye lands on what
+   the number means before the number itself. The order in the markup is
+   value-then-label, which is what a screen reader should hear; `column-
+   reverse` handles the visual order without duplicating the text. */
 .countPrimary {
   border-color: var(--color-primary);
   background: var(--color-primary-wash);
 }
 
 .countValue {
-  font-size: var(--font-size-h2);
+  order: 2;
+  font-size: 28px;
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-tight);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  /* Tabular figures, so a number ticking from 9 to 10 does not shift the
+     label under it. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -107,18 +114,45 @@
 }
 
 .countLabel {
-  font-size: var(--font-size-sm);
+  order: 1;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.countPrimary .countLabel {
+  color: var(--color-primary);
 }
 
 .countHint {
+  order: 3;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
   color: var(--color-text-muted);
+  /* Two lines reserved, so tiles in a row stay the same height whether
+     their hint wraps or not. */
+  min-height: 40px;
+}
+
+.countPrimary .countHint {
+  border-top-color: var(--color-tint);
 }
 
 .countWarn {
   color: var(--color-error-ink);
+}
+
+/* A note under a filter field — kept in the flow so it does not shift
+   the row when it appears. */
+.rangeNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 /* ---- Cards ------------------------------------------------------------ */
@@ -195,17 +229,30 @@
   color: var(--color-text-muted);
 }
 
+/* The line between the filters and the table. It answers "did my filter
+   do anything?" without the person having to count rows, and it is where
+   Clear lives — beside the count it would reset, not floating in the
+   header where it reads as a page-level action. */
 .filterSummary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-4);
+  margin-top: calc(var(--space-4) * -1);
+  padding: var(--space-2) var(--space-1);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
+/* Everything after the first item is pushed right, so the counts read
+   left-to-right and the action sits at the end of the line. */
+.filterSummary > *:last-child {
+  margin-left: auto;
+}
+
 .filterCount {
   font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
 

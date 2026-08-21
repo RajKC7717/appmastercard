@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import Button from '../../shared/ui/Button.jsx';
-import { SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { ErrorState, Skeleton } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import ThemeAverages from '../../shared/console/ThemeAverages.jsx';
@@ -30,10 +31,14 @@ export default function SpocInsights() {
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
 
-  const setFilter = (key, value) => {
+  const setFilter = (key, value) => setFilters({ [key]: value });
+
+  const setFilters = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
     setParams(next, { replace: true });
   };
 
@@ -92,28 +97,7 @@ export default function SpocInsights() {
               .map((row) => ({ value: row.eventId, label: row.eventName }))}
           />
         </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="i-from">
-            From
-          </label>
-          <TextInput
-            id="i-from"
-            type="date"
-            value={from}
-            onChange={(changeEvent) => setFilter('from', changeEvent.target.value)}
-          />
-        </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="i-to">
-            To
-          </label>
-          <TextInput
-            id="i-to"
-            type="date"
-            value={to}
-            onChange={(changeEvent) => setFilter('to', changeEvent.target.value)}
-          />
-        </div>
+        <DateRangeFilter idPrefix="i" from={from} to={to} onChange={setFilters} />
       </section>
 
       <div className={styles.filterSummary}>
@@ -134,7 +118,7 @@ export default function SpocInsights() {
           <ThemeExplorer
             feedback={scoped}
             title="What comes up again and again"
-            caption="Written comments broken into the aspects they mention. Select a theme to read the words behind it."
+            caption="Written comments broken into the aspects they mention. Open a theme to read the words behind it."
           />
         </>
       )}

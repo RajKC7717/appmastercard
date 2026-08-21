@@ -25,6 +25,7 @@ export default function DataTable({
   onSort,
   empty,
   caption,
+  summary,
   loading = false,
   skeletonRows = 6,
 }) {
@@ -119,6 +120,15 @@ export default function DataTable({
               ))}
         </tbody>
       </table>
+
+      {/* The count belongs on the table, not floating above it — a table
+          that has been filtered should say so where the rows are. */}
+      {summary && !loading && (
+        <div className={styles.summary}>
+          <span className={styles.summaryStrong}>{rows.length}</span>
+          {summary}
+        </div>
+      )}
     </div>
   );
 }

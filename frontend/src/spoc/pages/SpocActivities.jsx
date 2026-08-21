@@ -4,7 +4,8 @@ import { CalendarX, Download } from 'lucide-react';
 import Badge, { EVENT_TONE } from '../../shared/ui/Badge.jsx';
 import Button from '../../shared/ui/Button.jsx';
 import DataTable, { nextSort, sortRows } from '../../shared/ui/DataTable.jsx';
-import { SearchInput, SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SearchInput, SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { EmptyState, ErrorState } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import { useConsoleData } from '../../shared/console/ConsoleDataProvider.jsx';
@@ -35,10 +36,14 @@ export default function SpocActivities() {
     filters[key] = params.get(key) ?? '';
   });
 
-  const setFilter = (key, value) => {
+  const setFilter = (key, value) => setFilters({ [key]: value });
+
+  const setFilters = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
     setParams(next, { replace: true });
   };
 
@@ -159,28 +164,12 @@ export default function SpocActivities() {
             options={EVENT_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] }))}
           />
         </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="s-from">
-            From
-          </label>
-          <TextInput
-            id="s-from"
-            type="date"
-            value={filters.from}
-            onChange={(event) => setFilter('from', event.target.value)}
-          />
-        </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="s-to">
-            To
-          </label>
-          <TextInput
-            id="s-to"
-            type="date"
-            value={filters.to}
-            onChange={(event) => setFilter('to', event.target.value)}
-          />
-        </div>
+        <DateRangeFilter
+          idPrefix="s"
+          from={filters.from}
+          to={filters.to}
+          onChange={setFilters}
+        />
       </section>
 
       <div className={styles.filterSummary}>
@@ -197,6 +186,7 @@ export default function SpocActivities() {
 
       <DataTable
         caption="Activities run for your company"
+        summary={`of ${summarised.length} activities shown.`}
         columns={columns}
         rows={sorted}
         loading={status === 'loading'}

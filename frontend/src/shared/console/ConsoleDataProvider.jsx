@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   cancelEvent as cancelEventRequest,
+  createActionPlanRun,
   createEvent as createEventRequest,
+  deleteEvent as deleteEventRequest,
+  getActionPlanRuns,
   getCompanies,
   getEvents,
   getFeedback,
@@ -12,6 +15,12 @@ import {
 } from '../lib/orgApi.js';
 import { summariseEvent, workQueueCounts } from '../lib/analytics.js';
 import { summariseThemes, urgentThemes } from '../lib/insights.js';
+import {
+  findPreviousActivity,
+  hasCuratedPlan,
+  planEligibility,
+  resolveActionPlan,
+} from '../../admin/data/actionPlanIndex.js';
 
 const ConsoleDataContext = createContext(null);
 
@@ -36,6 +45,7 @@ export function ConsoleDataProvider({ companyId = null, children }) {
     feedback: [],
     needs: [],
     companies: [],
+    planRuns: {},
     error: null,
   });
 
@@ -48,11 +58,12 @@ export function ConsoleDataProvider({ companyId = null, children }) {
 
     try {
       const scope = companyId ? { companyId } : {};
-      const [events, feedback, needs, companies] = await Promise.all([
+      const [events, feedback, needs, companies, planRuns] = await Promise.all([
         getEvents(scope),
         getFeedback(scope),
         getNeeds(scope),
         getCompanies(),
+        getActionPlanRuns(),
       ]);
 
       setState({
@@ -61,6 +72,7 @@ export function ConsoleDataProvider({ companyId = null, children }) {
         feedback: feedback.data,
         needs: needs.data,
         companies: companies.data,
+        planRuns: planRuns.data,
         error: null,
       });
     } catch (error) {
@@ -145,6 +157,34 @@ export function ConsoleDataProvider({ companyId = null, children }) {
     [load],
   );
 
+  /** Hard delete. Refused by the API for anything with history behind it. */
+  const deleteEvent = useCallback(
+    async (eventId) => {
+      try {
+        await deleteEventRequest(eventId);
+        await load();
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, error: error.message, code: error.code };
+      }
+    },
+    [load],
+  );
+
+  /** Run the analysis for one activity and record when it ran. */
+  const createPlan = useCallback(
+    async (eventId) => {
+      try {
+        const { data } = await createActionPlanRun(eventId);
+        await load();
+        return { ok: true, generatedAt: data.generatedAt };
+      } catch (error) {
+        return { ok: false, error: error.message };
+      }
+    },
+    [load],
+  );
+
   const respondToNeed = useCallback(
     async (reference, response) => {
       try {
@@ -180,6 +220,33 @@ export function ConsoleDataProvider({ companyId = null, children }) {
       else byEvent.set(row.eventId, [row]);
     });
     const NONE = [];
+    const feedbackFor = (eventId) => byEvent.get(eventId) ?? NONE;
+
+    /* ---- Action plans ------------------------------------------------
+       Resolved here, once, for every activity — so the list page, the
+       detail page and the activity page can never disagree about whether
+       a plan exists. `resolveActionPlan` returns a complete plan or null,
+       never a half-built one. */
+    const plans = new Map();
+    const planStates = new Map();
+
+    summarised.forEach((event) => {
+      const eligibility = planEligibility(event);
+      const plan = resolveActionPlan({
+        event,
+        feedback: feedbackFor(event.eventId),
+        previous: findPreviousActivity(event, summarised, feedbackFor),
+        generatedAt: state.planRuns?.[event.eventId] ?? null,
+      });
+
+      if (plan) plans.set(event.eventId, plan);
+      planStates.set(event.eventId, {
+        hasPlan: Boolean(plan),
+        curated: hasCuratedPlan(event.eventId),
+        generatedAt: state.planRuns?.[event.eventId] ?? null,
+        ...eligibility,
+      });
+    });
 
     return {
       ...state,
@@ -189,7 +256,9 @@ export function ConsoleDataProvider({ companyId = null, children }) {
       updateEvent,
       setEventStatus,
       cancelEvent,
+      deleteEvent,
       respondToNeed,
+      createPlan,
 
       summarised,
       insights,
@@ -205,7 +274,22 @@ export function ConsoleDataProvider({ companyId = null, children }) {
       openNeeds: state.needs.filter((need) => need.status === 'OPEN'),
 
       findEvent: (eventId) => summarised.find((event) => event.eventId === eventId) ?? null,
-      feedbackForEvent: (eventId) => byEvent.get(eventId) ?? NONE,
+      feedbackForEvent: feedbackFor,
+
+      /* One plan per activity, or null. Never a partially-built object. */
+      planFor: (eventId) => plans.get(eventId) ?? null,
+      planStateFor: (eventId) =>
+        planStates.get(eventId) ?? { hasPlan: false, eligible: false, reason: 'Unknown activity.' },
+      eventsWithPlans: summarised.filter((event) => plans.has(event.eventId)),
+      eventsAwaitingPlan: summarised.filter(
+        (event) => !plans.has(event.eventId) && planStates.get(event.eventId)?.eligible,
+      ),
+      eventsBlockedFromPlan: summarised.filter(
+        (event) =>
+          !plans.has(event.eventId) &&
+          !planStates.get(event.eventId)?.eligible &&
+          ['ONGOING', 'COMPLETED'].includes(event.status),
+      ),
     };
   }, [
     state,
@@ -215,7 +299,9 @@ export function ConsoleDataProvider({ companyId = null, children }) {
     updateEvent,
     setEventStatus,
     cancelEvent,
+    deleteEvent,
     respondToNeed,
+    createPlan,
   ]);
 
   return <ConsoleDataContext.Provider value={value}>{children}</ConsoleDataContext.Provider>;

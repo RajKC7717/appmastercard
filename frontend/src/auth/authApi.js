@@ -72,10 +72,25 @@ export const SIGNUP_ROLES = [
   },
   {
     value: 'ADMIN',
-    label: 'Seva Sahayog admin',
+    label: 'Seva Sahayog team',
     hint: 'You work at the Foundation and manage activities and reporting.',
   },
 ];
+
+/**
+ * Roles a given door admits.
+ *
+ * The Foundation door admits both ADMIN and STAFF, because they are the
+ * same table and the same console — a fourth dropdown option separating
+ * them would ask the person a question the system does not need answered.
+ * Sign-up still creates an ADMIN; a STAFF account is made by an admin,
+ * which is why STAFF is not offered above.
+ */
+const ROLES_BEHIND_DOOR = {
+  ADMIN: ['ADMIN', 'STAFF'],
+  SPOC: ['SPOC'],
+  VOLUNTEER: ['VOLUNTEER'],
+};
 
 /** Company users belong to exactly one company — RULE 1. */
 export const COMPANY_ROLES = ['SPOC', 'VOLUNTEER'];
@@ -242,7 +257,7 @@ export async function login({ email, password, role }) {
     throw error;
   }
 
-  if (role && account.role !== role) {
+  if (role && !(ROLES_BEHIND_DOOR[role] ?? [role]).includes(account.role)) {
     const error = new Error(
       `This account is registered as ${ROLES[account.role].label.toLowerCase()}. Choose that role and try again.`,
     );

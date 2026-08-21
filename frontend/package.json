@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:render": "node scripts/render-check.mjs",
+    "verify:plan": "node scripts/action-plan-check.mjs",
+    "verify": "npm run verify:render && npm run verify:plan"
   },
   "dependencies": {
     "lucide-react": "^0.475.0",

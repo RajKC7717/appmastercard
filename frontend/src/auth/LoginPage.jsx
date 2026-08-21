@@ -81,7 +81,8 @@ export default function LoginPage() {
           <Logo sub="Volunteer experience" />
           <h1 className={styles.heading}>Sign in</h1>
           <p className={styles.subtext}>
-            One door for volunteers, corporate SPOCs and the Seva Sahayog team.
+            One door for volunteers, corporate SPOCs and the Seva Sahayog team. Your role
+            decides which app opens.
           </p>
         </header>
 

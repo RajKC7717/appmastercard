@@ -3,7 +3,8 @@ import { Download, Printer } from 'lucide-react';
 import Button from '../../shared/ui/Button.jsx';
 import DataTable, { nextSort, sortRows } from '../../shared/ui/DataTable.jsx';
 import BarList from '../../shared/ui/BarList.jsx';
-import { SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import ThemeAverages from '../../shared/console/ThemeAverages.jsx';
@@ -48,6 +49,10 @@ export default function AdminReports() {
 
   const change = (key) => (event) =>
     setRange((current) => ({ ...current, [key]: event.target.value }));
+
+  /* The date pair moves together, so a From after the To is not
+     representable rather than merely discouraged. */
+  const changeDates = (patch) => setRange((current) => ({ ...current, ...patch }));
 
   const events = useMemo(
     () =>
@@ -182,18 +187,7 @@ export default function AdminReports() {
             options={companies.map((row) => ({ value: row.companyId, label: row.companyName }))}
           />
         </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="r-from">
-            From
-          </label>
-          <TextInput id="r-from" type="date" value={range.from} onChange={change('from')} />
-        </div>
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="r-to">
-            To
-          </label>
-          <TextInput id="r-to" type="date" value={range.to} onChange={change('to')} />
-        </div>
+        <DateRangeFilter idPrefix="r" from={range.from} to={range.to} onChange={changeDates} />
       </section>
 
       {status === 'loading' ? (
@@ -293,6 +287,7 @@ export default function AdminReports() {
             </div>
             <DataTable
               caption="Activities in the reporting period"
+              summary="activities in this period. Every number above is the sum of these rows."
               columns={columns}
               rows={sorted}
               getRowKey={(row) => row.eventId}

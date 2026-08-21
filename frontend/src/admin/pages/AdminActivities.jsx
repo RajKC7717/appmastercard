@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarPlus, CalendarX, Download } from 'lucide-react';
+import { CalendarPlus, CalendarX, Download, Trash2 } from 'lucide-react';
 import Badge, { EVENT_TONE } from '../../shared/ui/Badge.jsx';
 import Button from '../../shared/ui/Button.jsx';
 import DataTable, { nextSort, sortRows } from '../../shared/ui/DataTable.jsx';
-import { SearchInput, SelectInput, TextInput } from '../../shared/ui/Form.jsx';
+import { SearchInput, SelectInput } from '../../shared/ui/Form.jsx';
+import DateRangeFilter from '../../shared/ui/DateRangeFilter.jsx';
 import { EmptyState, ErrorState } from '../../shared/ui/States.jsx';
 import { useToast } from '../../shared/ui/Toast.jsx';
 import { useConsoleData } from '../../shared/console/ConsoleDataProvider.jsx';
 import ActivityFormDialog from '../components/ActivityFormDialog.jsx';
+import DeleteActivityDialog from '../components/DeleteActivityDialog.jsx';
 import { ACTIVITY_TYPES, EVENT_STATUSES, STATUS_LABEL } from '../../shared/data/orgData.js';
 import { ACTIVITY_COLUMNS, downloadCsv, reportFilename } from '../../shared/lib/exports.js';
 import { formatShortDate, withinRange } from '../../shared/lib/date.js';
@@ -34,8 +36,10 @@ export default function AdminActivities() {
   const navigate = useNavigate();
   const { notify } = useToast();
   const [params, setParams] = useSearchParams();
-  const { status, error, reload, summarised, companies, createEvent } = useConsoleData();
+  const { status, error, reload, summarised, companies, createEvent, deleteEvent } =
+    useConsoleData();
   const [sort, setSort] = useState({ key: 'eventDate', direction: 'desc' });
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const dialogOpen = params.get('new') === '1';
   const filters = { ...EMPTY_FILTERS };
@@ -43,10 +47,16 @@ export default function AdminActivities() {
     filters[key] = params.get(key) ?? '';
   });
 
-  const setFilter = (key, value) => {
+  const setFilter = (key, value) => setFilters({ [key]: value });
+
+  /* A patch, not a single key: moving one end of a date range past the
+     other has to carry the other end with it, in one update. */
+  const setFilters = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
     next.delete('new');
     setParams(next, { replace: true });
   };
@@ -139,6 +149,24 @@ export default function AdminActivities() {
               {row.avgRating}/5
             </span>
           ),
+      },
+      {
+        key: 'actions',
+        /* Labelled, not blank. A screen reader announces every cell with
+           its column header, and "column 9" is not a header. */
+        label: 'Actions',
+        align: 'right',
+        /* Delete is offered only for a record created in this console that
+           nobody has registered for. Anything with history is cancelled
+           instead — the schema's RESTRICT foreign keys would refuse the
+           delete, and offering a button the database rejects is worse
+           than not offering one. */
+        render: (row) =>
+          row.createdLocally && row.volunteersRegistered === 0 ? (
+            <Button variant="ghost" icon={Trash2} onClick={() => setPendingDelete(row)}>
+              Delete
+            </Button>
+          ) : null,
       },
     ],
     [],
@@ -245,29 +273,12 @@ export default function AdminActivities() {
           />
         </div>
 
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="filter-from">
-            From
-          </label>
-          <TextInput
-            id="filter-from"
-            type="date"
-            value={filters.from}
-            onChange={(event) => setFilter('from', event.target.value)}
-          />
-        </div>
-
-        <div className={styles.filterField}>
-          <label className={styles.filterLabel} htmlFor="filter-to">
-            To
-          </label>
-          <TextInput
-            id="filter-to"
-            type="date"
-            value={filters.to}
-            onChange={(event) => setFilter('to', event.target.value)}
-          />
-        </div>
+        <DateRangeFilter
+          idPrefix="filter"
+          from={filters.from}
+          to={filters.to}
+          onChange={setFilters}
+        />
       </section>
 
       <div className={styles.filterSummary}>
@@ -284,6 +295,7 @@ export default function AdminActivities() {
 
       <DataTable
         caption="Activities"
+        summary={`of ${summarised.length} activities shown.`}
         columns={columns}
         rows={sorted}
         loading={status === 'loading'}
@@ -318,6 +330,20 @@ export default function AdminActivities() {
         onClose={closeDialog}
         onSubmit={onCreate}
         companies={companies}
+      />
+
+      <DeleteActivityDialog
+        open={Boolean(pendingDelete)}
+        event={pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => {
+          const result = await deleteEvent(pendingDelete.eventId);
+          if (result.ok) {
+            notify({ message: `${pendingDelete.eventName} deleted.` });
+            setPendingDelete(null);
+          }
+          return result;
+        }}
       />
     </div>
   );

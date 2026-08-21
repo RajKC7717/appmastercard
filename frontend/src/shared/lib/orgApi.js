@@ -46,6 +46,19 @@ const LATENCY = 380;
 const delay = (ms = LATENCY) => new Promise((resolve) => setTimeout(resolve, ms));
 const ok = (data) => ({ success: true, data });
 
+/** Shift an ISO instant by whole hours, keeping the +05:30 offset. */
+function addHours(iso, hours) {
+  const at = new Date(iso);
+  at.setTime(at.getTime() + hours * 3_600_000);
+  const pad = (n) => String(n).padStart(2, '0');
+  /* Rendered back in IST rather than as a Z string, so the stored value
+     looks like every other timestamp in the dataset. */
+  const ist = new Date(at.getTime() + 5.5 * 3_600_000);
+  return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())}T${pad(
+    ist.getUTCHours(),
+  )}:${pad(ist.getUTCMinutes())}:00+05:30`;
+}
+
 /* Flip in the console to exercise every error state:  window.__sevaFailNext = true */
 function shouldFail() {
   if (typeof window !== 'undefined' && window.__sevaFailNext) {
@@ -64,6 +77,7 @@ function shouldFail() {
 const EVENTS_KEY = 'seva.console.events';
 const OVERRIDES_KEY = 'seva.console.eventOverrides';
 const NEEDS_KEY = 'seva.console.needReplies';
+const PLANS_KEY = 'seva.console.actionPlans';
 
 function read(key, fallback) {
   try {
@@ -142,6 +156,7 @@ export async function createEvent(payload) {
   const sequence = 300 + created.length;
   const startTime = payload.startTime || '09:00';
   const endTime = payload.endTime || '13:00';
+  const feedbackHours = Number(payload.feedbackHours) || 12;
 
   const event = {
     eventId: `ACT-2026-${String(sequence).padStart(4, '0')}`,
@@ -157,11 +172,14 @@ export async function createEvent(payload) {
     eventDate: `${payload.eventDate}T${startTime}:00+05:30`,
     startTime,
     endTime,
-    /* The feedback window defaults to "from the moment it ends until
-       midnight" — the sixty-second promise only holds if the form is open
-       the instant the volunteer puts their gloves down. */
+    /* The window opens the moment the activity ends — the sixty-second
+       promise only holds if the form is live while the volunteer is still
+       putting their gloves down — and closes `feedbackHours` later.
+       CHECK constraint `events_feedback_window_check` requires
+       feedbackStart < feedbackEnd, which a positive duration guarantees. */
     feedbackStart: `${payload.eventDate}T${endTime}:00+05:30`,
-    feedbackEnd: `${payload.eventDate}T23:59:00+05:30`,
+    feedbackEnd: addHours(`${payload.eventDate}T${endTime}:00+05:30`, feedbackHours),
+    feedbackHours,
     volunteersNeeded: Number(payload.volunteersNeeded) || 25,
     volunteersRegistered: 0,
     createdLocally: true,
@@ -380,9 +398,89 @@ export async function respondToNeed(reference, response) {
   return ok({ reference, ...record });
 }
 
+/* ---------- Action plans ------------------------------------------------
+   POST /api/events/:eventId/action-plan — proposed, see API_CONTRACT.md.
+
+   On the real system a plan is produced by the AI service when a feedback
+   window closes, and this endpoint would only ever be a manual re-run.
+   Here it records WHEN a plan was generated; the plan itself is derived
+   from the activity's feedback, so it stays correct as more responses
+   arrive rather than freezing a stale copy.
+   ---------------------------------------------------------------------- */
+
+/** eventId -> ISO timestamp the plan was generated. */
+export async function getActionPlanRuns() {
+  await delay(140);
+  return ok(read(PLANS_KEY, {}));
+}
+
+export async function createActionPlanRun(eventId) {
+  await delay(900); // Analysis takes a moment, and the UI should show that.
+  if (shouldFail()) throw new Error('The analysis did not complete.');
+
+  const runs = read(PLANS_KEY, {});
+  const generatedAt = new Date().toISOString();
+  write(PLANS_KEY, { ...runs, [eventId]: generatedAt });
+  return ok({ eventId, generatedAt });
+}
+
+export async function deleteActionPlanRun(eventId) {
+  await delay(200);
+  const runs = read(PLANS_KEY, {});
+  delete runs[eventId];
+  write(PLANS_KEY, runs);
+  return ok({ eventId });
+}
+
+/**
+ * DELETE an activity outright.
+ *
+ * Only ever used for an activity created in this console that has no
+ * registrations and no feedback behind it — a mistyped record someone
+ * wants gone. Anything with history is CANCELLED instead, never deleted,
+ * because the schema's foreign keys are RESTRICT precisely so that a
+ * delete cannot orphan a volunteer's feedback.
+ */
+export async function deleteEvent(eventId) {
+  await delay(450);
+  if (shouldFail()) throw new Error('We could not delete this activity.');
+
+  const created = read(EVENTS_KEY, []);
+  const target = created.find((event) => event.eventId === eventId);
+
+  if (!target) {
+    const error = new Error(
+      'Only an activity created in this console can be deleted. Cancel it instead — that keeps its registrations and feedback auditable.',
+    );
+    error.code = 'NOT_DELETABLE';
+    throw error;
+  }
+
+  if (target.volunteersRegistered > 0) {
+    const error = new Error(
+      `${target.volunteersRegistered} volunteers have already registered. Cancel the activity instead so their records survive.`,
+    );
+    error.code = 'HAS_REGISTRATIONS';
+    throw error;
+  }
+
+  write(EVENTS_KEY, created.filter((event) => event.eventId !== eventId));
+
+  /* Clear anything else that pointed at it, so nothing is left dangling. */
+  const overrides = read(OVERRIDES_KEY, {});
+  delete overrides[eventId];
+  write(OVERRIDES_KEY, overrides);
+
+  const runs = read(PLANS_KEY, {});
+  delete runs[eventId];
+  write(PLANS_KEY, runs);
+
+  return ok({ eventId });
+}
+
 /** Demo helper — clears everything the consoles wrote on this device. */
 export function resetConsoleState() {
-  [EVENTS_KEY, OVERRIDES_KEY, NEEDS_KEY].forEach((key) => {
+  [EVENTS_KEY, OVERRIDES_KEY, NEEDS_KEY, PLANS_KEY].forEach((key) => {
     try {
       window.localStorage.removeItem(key);
     } catch {

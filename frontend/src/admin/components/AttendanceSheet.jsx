@@ -145,6 +145,7 @@ export default function AttendanceSheet({ event, feedback }) {
 
       <DataTable
         caption={`Attendance for ${event.eventName}`}
+        summary={`of ${state.rows.length} registered volunteers shown.`}
         columns={columns}
         rows={rows}
         loading={state.status === 'loading'}

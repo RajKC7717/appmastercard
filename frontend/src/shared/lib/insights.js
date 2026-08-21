@@ -341,6 +341,7 @@ export function summariseThemes(insights) {
       positive: 0,
       neutral: 0,
       evidence: [],
+      positiveEvidence: [],
     };
 
     current.total += 1;
@@ -351,6 +352,10 @@ export function summariseThemes(insights) {
       current.neutral += 1;
     } else {
       current.positive += 1;
+      /* Kept separately from `evidence`, which is the negative set every
+         existing caller already reads. An action plan needs both: what to
+         fix, and what to keep doing. */
+      if (current.positiveEvidence.length < 4) current.positiveEvidence.push(insight);
     }
 
     buckets.set(insight.detectedTheme, current);
