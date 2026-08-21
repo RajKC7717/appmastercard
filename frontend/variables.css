@@ -1,0 +1,59 @@
+/* src/styles/variables.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root {
+  /* Colors */
+  --color-primary: #016B61;
+  --color-primary-hover: #01524A;
+  --color-secondary: #70B2B2;
+  --color-accent: #E5E9C5;
+  --color-tint: #9ECFD4;
+  --color-background: #F5F9F8;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #10241F;
+  --color-text-muted: #4B6B66;
+  --color-border: #DCEAE8;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+
+  /* Typography */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-h1: 32px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-body: 16px;
+  --font-size-sm: 14px;
+  --font-weight-regular: 400;
+  --font-weight-bold: 600;
+
+  /* Spacing (4px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+}
