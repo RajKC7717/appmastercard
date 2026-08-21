@@ -1,0 +1,402 @@
+// Volunteer Experience & Feedback Tracking System
+// ================================================
+//
+// Two separate user domains:
+//   - NGOUser  (ADMIN / STAFF)        — NGO employees who manage events
+//   - CompanyUser (SPOC / VOLUNTEER)   — corporate employees who participate
+//
+// An NGO ADMIN creates Events. A SPOC is optionally assigned per event (must
+// belong to the same company — enforced at the service layer). Volunteers
+// register for events belonging to their own company only (service-layer rule).
+//
+// Feedback is linked through EventRegistration (not directly to Event + User),
+// guaranteeing one feedback per registration. Ratings are normalized into
+// FeedbackRating rows (one per theme) so adding a new question is an INSERT,
+// not a migration.
+//
+// AI-classified insights live in FeedbackInsight (aspect-level sentiment) and
+// AIAnalysisRun (audit of each processing run).
+//
+// Delete strategy:
+//   - Company, Event, EventRegistration, Feedback use RESTRICT to protect
+//     historical data. Deactivate or cancel rather than delete.
+//   - FeedbackRating, FeedbackInsight, AIAnalysisRun CASCADE from their parent
+//     Feedback since they are owned child data.
+//   - FeedbackTheme uses RESTRICT — never delete a theme that has ratings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+/// Roles for NGO employees.
+enum NgoRole {
+  ADMIN
+  STAFF
+}
+
+/// Roles for corporate employees.
+enum CompanyRole {
+  SPOC
+  VOLUNTEER
+}
+
+/// Lifecycle status of an event.
+enum EventStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+/// Attendance tracking for event registrations.
+enum AttendanceStatus {
+  REGISTERED
+  ATTENDED
+  ABSENT
+  CANCELLED
+}
+
+/// Processing status for feedback AI analysis.
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Where a numeric rating came from: answered on the form, or inferred by the
+/// AI service from free text.
+enum RatingSource {
+  EXPLICIT
+  AI_INFERRED
+}
+
+/// Five-level sentiment scale for AI-classified feedback insights.
+enum InsightSentiment {
+  VERY_NEGATIVE
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+  VERY_POSITIVE
+}
+
+/// How a feedback insight was extracted.
+enum ExtractionMethod {
+  AI
+  HEURISTIC
+  HYBRID
+}
+
+// ── 1. NGOUser ───────────────────────────────────────────────────────────────
+
+/// Users who work for the NGO (ADMIN or STAFF).
+/// ADMIN creates events. STAFF helps manage them.
+/// These users are NOT corporate users — no companyId.
+/// Never store plaintext passwords; use passwordHash.
+model NGOUser {
+  userId      String    @id @default(uuid()) @map("user_id") @db.Uuid
+  name        String    @db.VarChar(150)
+  email       String    @unique @db.VarChar(255)
+  phone       String?   @db.VarChar(20)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role        NgoRole   @default(STAFF)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  /// Events this NGO user created (as admin).
+  createdEvents Event[] @relation("EventCreator")
+
+  @@map("ngo_users")
+}
+
+// ── 2. Company ───────────────────────────────────────────────────────────────
+
+/// Corporate partner organization. Each company has its own users and events.
+/// Do NOT delete companies with existing events — use soft deactivation instead.
+model Company {
+  companyId   String   @id @default(uuid()) @map("company_id") @db.Uuid
+  companyName String   @unique @map("company_name") @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  users  CompanyUser[]
+  events Event[]
+
+  @@index([companyName])
+  @@map("companies")
+}
+
+// ── 3. CompanyUser ───────────────────────────────────────────────────────────
+
+/// Corporate employees who are either SPOCs or Volunteers.
+/// Every CompanyUser belongs to exactly ONE company.
+/// A CompanyUser cannot be ADMIN or STAFF — those are NgoRole values.
+/// Email is unique within a company (composite unique), not globally.
+/// Never store plaintext passwords; use passwordHash.
+model CompanyUser {
+  userId      String      @id @default(uuid()) @map("user_id") @db.Uuid
+  companyId   String      @map("company_id") @db.Uuid
+  name        String      @db.VarChar(150)
+  email       String      @db.VarChar(255)
+  phone       String?     @db.VarChar(20)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  role        CompanyRole @default(VOLUNTEER)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt DateTime?   @map("last_login_at") @db.Timestamptz(6)
+
+  company       Company             @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  /// Events where this user is assigned as SPOC.
+  spocEvents    Event[]             @relation("EventSpoc")
+  /// Registrations for events (as volunteer).
+  registrations EventRegistration[]
+
+  /// Email must be unique within a company (supports login by companyId + email).
+  @@unique([companyId, email])
+  @@index([companyId])
+  /// Supports: find all volunteers/SPOCs for a company.
+  @@index([companyId, role])
+  @@map("company_users")
+}
+
+// ── 4. Event ─────────────────────────────────────────────────────────────────
+
+/// A volunteering event created by an NGO ADMIN.
+/// Every event belongs to exactly one company.
+///
+/// Business rules enforced at the service layer (not expressible as simple FKs):
+///   RULE 8:  Only NGO ADMIN should be permitted to create events.
+///   RULE 11: If spocId is set, that SPOC must belong to the same company as
+///            the event (Event.companyId == CompanyUser.companyId).
+///   RULE:    If both feedbackStart and feedbackEnd exist,
+///            feedbackStart < feedbackEnd.
+model Event {
+  eventId       String      @id @default(uuid()) @map("event_id") @db.Uuid
+  companyId     String      @map("company_id") @db.Uuid
+  adminId       String      @map("admin_id") @db.Uuid
+  spocId        String?     @map("spoc_id") @db.Uuid
+  eventName     String      @map("event_name") @db.VarChar(200)
+  description   String?
+  location      String?     @db.VarChar(255)
+  status        EventStatus @default(UPCOMING)
+  eventDate     DateTime    @map("event_date") @db.Timestamptz(6)
+  feedbackStart DateTime?   @map("feedback_start") @db.Timestamptz(6)
+  feedbackEnd   DateTime?   @map("feedback_end") @db.Timestamptz(6)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company       Company             @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  admin         NGOUser             @relation("EventCreator", fields: [adminId], references: [userId], onDelete: Restrict)
+  spoc          CompanyUser?        @relation("EventSpoc", fields: [spocId], references: [userId], onDelete: SetNull)
+  registrations EventRegistration[]
+
+  @@index([companyId])
+  @@index([eventDate])
+  @@index([status])
+  @@index([companyId, status])
+  @@map("events")
+}
+
+// ── 5. EventRegistration ─────────────────────────────────────────────────────
+
+/// A volunteer registering for an event.
+/// A volunteer can register for an event only once (composite unique).
+///
+/// Business rule enforced at the service layer:
+///   RULE 12: A volunteer can register ONLY if
+///            CompanyUser.companyId == Event.companyId.
+///            (Mastercard volunteer → Mastercard event: VALID;
+///             Mastercard volunteer → BNY Mellon event: INVALID.)
+model EventRegistration {
+  registrationId  String           @id @default(uuid()) @map("registration_id") @db.Uuid
+  eventId         String           @map("event_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  attendanceStatus AttendanceStatus @default(REGISTERED) @map("attendance_status")
+  registeredAt    DateTime         @default(now()) @map("registered_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  feedbackSubmittedAt DateTime?    @map("feedback_submitted_at") @db.Timestamptz(6)
+
+  event    Event       @relation(fields: [eventId], references: [eventId], onDelete: Restrict)
+  user     CompanyUser @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  /// Zero or one feedback per registration.
+  feedback Feedback?
+
+  /// A volunteer can register for a particular event only once.
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([eventId, attendanceStatus])
+  @@map("event_registrations")
+}
+
+// ── 6. Feedback ──────────────────────────────────────────────────────────────
+
+/// Feedback submitted by a volunteer after attending an event.
+/// Linked through EventRegistration — NOT directly to Event + User.
+/// This ensures one feedback per registration (registrationId is unique).
+///
+/// The original free-text feedback (overallComment) must NEVER be overwritten
+/// by AI processing. AI insights are stored separately in FeedbackInsight.
+///
+/// Business rules enforced at the service layer:
+///   RULE 14: Feedback can only be submitted for a valid registration.
+///   RULE 18: All six mandatory theme ratings must be supplied before marking
+///            feedback as complete (validate in service layer / transaction).
+///   RULE:    Feedback should only be submitted within the event's feedback
+///            window (feedbackStart <= now <= feedbackEnd) when configured.
+model Feedback {
+  feedbackId       String           @id @default(uuid()) @map("feedback_id") @db.Uuid
+  registrationId   String           @unique @map("registration_id") @db.Uuid
+  overallComment   String?          @map("overall_comment")
+  language         String           @default("en") @db.VarChar(10)
+  processingStatus ProcessingStatus @default(PENDING) @map("processing_status")
+  submittedAt      DateTime         @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  processedAt      DateTime?        @map("processed_at") @db.Timestamptz(6)
+
+  registration EventRegistration @relation(fields: [registrationId], references: [registrationId], onDelete: Restrict)
+  ratings      FeedbackRating[]
+  insights     FeedbackInsight[]
+  analysisRuns AIAnalysisRun[]
+
+  @@index([processingStatus])
+  @@index([submittedAt])
+  @@map("feedback")
+}
+
+// ── 7. FeedbackTheme ─────────────────────────────────────────────────────────
+
+/// Catalog of rating dimensions. The six mandatory themes are seeded and drive
+/// the feedback form: the API returns active themes ordered by displayOrder,
+/// and the frontend renders one question for each.
+///
+/// Non-mandatory themes are used by the AI service to classify free-text
+/// feedback (see FeedbackInsight). Adding a new question means inserting a
+/// theme row, not altering a table.
+///
+/// Theme 6 (PARTICIPATION_LIKELIHOOD) uses likelihood wording instead of
+/// quality wording — its scaleLabels JSON differs from the other five.
+/// Render labels from the API; don't hardcode them in the frontend.
+model FeedbackTheme {
+  themeId      String   @id @default(uuid()) @map("theme_id") @db.Uuid
+  themeCode    String   @unique @map("theme_code") @db.VarChar(50)
+  themeName    String   @map("theme_name") @db.VarChar(150)
+  question     String?
+  description  String?
+  /// Label for each point on the 1-5 scale, e.g. {"1":"Very Poor",...}.
+  scaleLabels  Json?    @map("scale_labels")
+  isMandatory  Boolean  @default(false) @map("is_mandatory")
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ratings  FeedbackRating[]
+  insights FeedbackInsight[]
+
+  @@index([isActive, displayOrder])
+  @@map("feedback_themes")
+}
+
+// ── 8. FeedbackRating ────────────────────────────────────────────────────────
+
+/// One rating, for one theme, on one feedback entry.
+/// Rating must be 1–5 (enforced via CHECK constraint in migration SQL).
+/// One feedback can have only one rating per theme.
+///
+/// For the six mandatory form questions, source = EXPLICIT.
+/// AI-inferred ratings use source = AI_INFERRED — filter on EXPLICIT in
+/// reports, or inferred values will pollute averages.
+model FeedbackRating {
+  ratingId   String       @id @default(uuid()) @map("rating_id") @db.Uuid
+  feedbackId String       @map("feedback_id") @db.Uuid
+  themeId    String       @map("theme_id") @db.Uuid
+  rating     Int          @db.SmallInt
+  source     RatingSource @default(EXPLICIT)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  feedback Feedback      @relation(fields: [feedbackId], references: [feedbackId], onDelete: Cascade)
+  theme    FeedbackTheme @relation(fields: [themeId], references: [themeId], onDelete: Restrict)
+
+  /// One rating per theme per feedback entry.
+  @@unique([feedbackId, themeId])
+  @@index([feedbackId])
+  @@index([themeId])
+  /// Powers "rating distribution for theme X" queries.
+  @@index([themeId, rating])
+  @@map("feedback_ratings")
+}
+
+// ── 9. FeedbackInsight ───────────────────────────────────────────────────────
+
+/// AI-classified aspect-level insight from a volunteer's free-text feedback.
+///
+/// themeId is nullable: if the AI detects a theme like VENUE that doesn't have
+/// a FeedbackTheme row, we store themeId = NULL and detectedTheme = "VENUE".
+/// For known mandatory themes, both themeId and detectedTheme are populated.
+///
+/// evidenceText stores the exact fragment from the volunteer's feedback that
+/// led to the classification, making it explainable.
+///
+/// AI confidence thresholds:
+///   confidence >= 0.75 → extractionMethod = AI
+///   confidence <  0.75 → extractionMethod = HEURISTIC or HYBRID
+model FeedbackInsight {
+  insightId        String           @id @default(uuid()) @map("insight_id") @db.Uuid
+  feedbackId       String           @map("feedback_id") @db.Uuid
+  themeId          String?          @map("theme_id") @db.Uuid
+  detectedTheme    String           @map("detected_theme") @db.VarChar(100)
+  sentiment        InsightSentiment
+  sentimentScore   Float?           @map("sentiment_score")
+  confidence       Float
+  evidenceText     String?          @map("evidence_text")
+  extractionMethod ExtractionMethod @map("extraction_method")
+  modelName        String           @map("model_name") @db.VarChar(100)
+  modelVersion     String?          @map("model_version") @db.VarChar(50)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  feedback Feedback       @relation(fields: [feedbackId], references: [feedbackId], onDelete: Cascade)
+  theme    FeedbackTheme? @relation(fields: [themeId], references: [themeId], onDelete: SetNull)
+
+  @@index([feedbackId])
+  @@index([themeId])
+  @@index([detectedTheme])
+  @@index([sentiment])
+  @@index([detectedTheme, sentiment])
+  @@map("feedback_insights")
+}
+
+// ── 10. AIAnalysisRun ────────────────────────────────────────────────────────
+
+/// Audit trail for AI processing of feedback. Tracks which model, prompt
+/// version, and processing status generated each set of FeedbackInsights.
+/// One feedback can have multiple analysis runs (re-processing).
+model AIAnalysisRun {
+  analysisRunId    String           @id @default(uuid()) @map("analysis_run_id") @db.Uuid
+  feedbackId       String           @map("feedback_id") @db.Uuid
+  modelName        String           @map("model_name") @db.VarChar(100)
+  modelVersion     String?          @map("model_version") @db.VarChar(50)
+  promptVersion    String?          @map("prompt_version") @db.VarChar(50)
+  processingStatus ProcessingStatus @default(PENDING) @map("processing_status")
+  processingTimeMs Int?             @map("processing_time_ms")
+  errorMessage     String?          @map("error_message")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt      DateTime?        @map("completed_at") @db.Timestamptz(6)
+
+  feedback Feedback @relation(fields: [feedbackId], references: [feedbackId], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@index([processingStatus])
+  @@map("ai_analysis_runs")
+}
