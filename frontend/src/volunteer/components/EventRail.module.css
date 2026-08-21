@@ -1,0 +1,181 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.headingBlock {
+  min-width: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-h2);
+  color: var(--color-text);
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-tint-wash);
+  border: 1px solid var(--color-tint);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.caption {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-body);
+  color: var(--color-text-muted);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: var(--height-touch);
+  height: var(--height-touch);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    opacity var(--transition);
+}
+
+.arrow svg {
+  width: 20px;
+  height: 20px;
+}
+
+.arrow:hover:not(:disabled) {
+  background: var(--color-tint-wash);
+  border-color: var(--color-secondary);
+}
+
+.arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.seeAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--height-touch);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.seeAll:hover {
+  background: var(--color-primary-wash);
+}
+
+.seeAllIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- The scroller ------------------------------------------------------ */
+
+.scroller {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-secondary) transparent;
+  /* Room for the card shadow, so it is not clipped by the overflow box. */
+  padding: var(--space-1) var(--space-1) var(--space-4);
+  margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) 0;
+}
+
+.scroller::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Rail cards stretch to the tallest in the row, so the row reads as a row. */
+.slide {
+  display: flex;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.slide > * {
+  width: 100%;
+}
+
+.empty {
+  padding: var(--space-8) var(--space-6);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: var(--font-size-h3);
+  }
+
+  .caption {
+    font-size: var(--font-size-sm);
+  }
+
+  /* Arrows are pointless on a touch screen — the thumb is the control. */
+  .arrow {
+    display: none;
+  }
+
+  /* Let the rail bleed to the screen edge so the next card peeks in and
+     the row reads as scrollable without any affordance. */
+  .scroller {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    margin-left: calc(var(--space-4) * -1);
+    margin-right: calc(var(--space-4) * -1);
+  }
+}

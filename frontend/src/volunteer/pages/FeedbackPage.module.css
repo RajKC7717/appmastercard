@@ -1,0 +1,208 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-bg);
+  /* Room for the pinned action bar, so the last card is never trapped. */
+  padding-bottom: 148px;
+}
+
+/* ---- Top bar ----------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-navbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--height-navbar);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--height-touch);
+  padding: 0 var(--space-2) 0 0;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  flex: 1 0 0;
+}
+
+.backIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* No fixed width — Devanagari runs longer than the English label. */
+.languages {
+  display: flex;
+  gap: var(--space-1);
+  flex: 1 0 0;
+  justify-content: flex-end;
+}
+
+.language {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.language:hover {
+  border-color: var(--color-secondary);
+  color: var(--color-primary);
+}
+
+.languageActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Progress rule ----------------------------------------------------- */
+
+.progress {
+  position: sticky;
+  top: var(--height-navbar);
+  z-index: var(--z-navbar);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.progress > * {
+  max-width: var(--width-volunteer);
+  margin: 0 auto;
+}
+
+/* ---- Content ----------------------------------------------------------- */
+
+.content {
+  width: 100%;
+  max-width: var(--width-volunteer);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.restored {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-tint-wash);
+  border: 1px solid var(--color-tint);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.restoredDismiss {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  min-height: var(--height-touch);
+  flex-shrink: 0;
+}
+
+/* The required-field rule, stated once before anything is asked. */
+.legend {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dualAction {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- Pinned action bar ------------------------------------------------- */
+
+.actionBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-navbar);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -1px 3px rgba(1, 107, 97, 0.08);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.actionInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: var(--width-volunteer);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.submitError {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-wash);
+  border: 1px solid var(--color-error);
+  color: #b91c1c;
+  font-size: var(--font-size-sm);
+}
+
+.actionHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  min-height: 20px; /* reserved */
+}
+
+/* Shown when submit was pressed with something still unanswered. */
+.actionHintAlert {
+  color: var(--color-error);
+  font-weight: var(--font-weight-semibold);
+}

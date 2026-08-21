@@ -1,0 +1,243 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 760px;
+}
+
+/* ---- Identity ---------------------------------------------------------- */
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.name {
+  font-size: var(--font-size-h1);
+}
+
+.role {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-body);
+  color: var(--color-text-muted);
+}
+
+.reference {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Stats ------------------------------------------------------------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-height: 116px;
+}
+
+.statIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-secondary);
+}
+
+.statValue {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.statLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Cards ------------------------------------------------------------- */
+
+.card,
+.demoCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.demoCard {
+  background: var(--color-bg);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-h3);
+}
+
+.cardIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-secondary);
+}
+
+.cardCaption {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  max-width: 58ch;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.detailLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.detailIcon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-secondary);
+}
+
+.detailValue {
+  margin: 0;
+  font-size: var(--font-size-body);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Language ---------------------------------------------------------- */
+
+.languages {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+/* No fixed width — Devanagari runs longer than the English label. */
+.language {
+  min-height: var(--height-touch);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.language:hover {
+  border-color: var(--color-secondary);
+}
+
+.languageActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Demo -------------------------------------------------------------- */
+
+.demoActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.resetNote {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  min-height: 20px; /* reserved, so the row never grows when it fills */
+}
+
+@media (max-width: 767px) {
+  .name {
+    font-size: var(--font-size-h2);
+  }
+
+  .avatar {
+    width: 60px;
+    height: 60px;
+    font-size: var(--font-size-h3);
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 0;
+  }
+
+  .statLabel {
+    flex: 1;
+  }
+
+  .details {
+    grid-template-columns: 1fr;
+  }
+
+  .card,
+  .demoCard {
+    padding: var(--space-4);
+  }
+}

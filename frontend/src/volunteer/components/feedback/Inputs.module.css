@@ -1,0 +1,284 @@
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin: calc(var(--space-3) * -1);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  scroll-margin-top: 160px; /* clears the sticky top bar + progress rule */
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+/* Highlighted after a submit attempt that skipped it. */
+.questionInvalid {
+  background: var(--color-error-wash);
+  border-color: var(--color-error);
+}
+
+.questionLabel {
+  font-size: var(--font-size-body);
+  color: var(--color-text);
+  line-height: var(--line-height-body);
+}
+
+.required {
+  margin-left: var(--space-1);
+  color: var(--color-error);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Faces ------------------------------------------------------------- */
+
+.faces {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+}
+
+.face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-1);
+  min-height: 88px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.face:hover {
+  border-color: var(--color-secondary);
+  background: var(--color-tint-wash);
+}
+
+.faceOn {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  background: var(--color-primary-wash);
+}
+
+.faceEmoji {
+  font-size: 30px;
+  line-height: 1;
+  filter: grayscale(0.55);
+  transition:
+    filter var(--transition),
+    transform var(--transition);
+}
+
+.faceOn .faceEmoji {
+  filter: none;
+  transform: scale(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faceOn .faceEmoji {
+    transform: none;
+  }
+}
+
+.faceLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.faceOn .faceLabel {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Numbered scale ---------------------------------------------------- */
+
+.scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+}
+
+.scaleButton {
+  min-height: var(--height-touch);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.scaleButton:hover {
+  border-color: var(--color-secondary);
+  background: var(--color-tint-wash);
+}
+
+.scaleOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+}
+
+.anchors {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- Likelihood -------------------------------------------------------- */
+
+.likelihood {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.likely {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--height-touch);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  text-align: left;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.likely:hover {
+  border-color: var(--color-secondary);
+  background: var(--color-tint-wash);
+}
+
+.likelyOn {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  background: var(--color-primary-wash);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}
+
+.likelyNumber {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.likelyOn .likelyNumber {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+/* ---- Error ------------------------------------------------------------- */
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 20px; /* reserved */
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-error);
+}
+
+.errorIcon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* ---- Low-rating follow-up ---------------------------------------------- */
+
+.followUp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-wash);
+  border: 1px solid var(--color-accent);
+  animation: open var(--transition-slow) ease-out;
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .followUp {
+    animation: none;
+  }
+}
+
+.followUpLabel {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.followUpHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.followUpInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  resize: vertical;
+}
+
+.followUpInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-tint);
+}
+
+@media (max-width: 767px) {
+  .faces {
+    gap: var(--space-1);
+  }
+
+  .face {
+    min-height: 80px;
+    padding: var(--space-2) 2px;
+  }
+
+  .faceEmoji {
+    font-size: 26px;
+  }
+}

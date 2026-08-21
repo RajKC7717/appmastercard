@@ -1,0 +1,98 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Label above the field, always. A placeholder is a hint, not a label. */
+.label {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.wrap:focus-within,
+.listening {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-tint);
+}
+
+.textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  resize: vertical;
+  min-height: 108px;
+}
+
+.textarea:focus {
+  outline: none;
+}
+
+.mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--height-touch);
+  margin: 0 var(--space-2) var(--space-2);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+.mic:hover {
+  background: var(--color-tint-wash);
+}
+
+.micOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.micIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.helper {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 20px; /* reserved */
+}
+
+.helperText {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+}
+
+.counter {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}

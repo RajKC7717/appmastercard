@@ -1,0 +1,97 @@
+/* ============================================================
+   SEVA SAHAYOG — DESIGN TOKENS
+   Single source of truth. Values come from skills/design.md.
+   Every *.module.css references these with var(--token).
+   No component may hardcode a hex value or an off-scale px value.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap');
+
+:root {
+  /* ---- Colour ------------------------------------------------ */
+  --color-primary: #016b61; /* deep teal   — buttons, links, active nav */
+  --color-primary-hover: #01524a; /* darker teal — primary hover        */
+  --color-secondary: #70b2b2; /* medium teal — icons, borders, accents  */
+  --color-accent: #e5e9c5; /* pale yellow-green — badges, rating fill   */
+  --color-tint: #9ecfd4; /* light teal — chips, selected rows          */
+
+  --color-bg: #f5f9f8; /* page backdrop  */
+  --color-surface: #ffffff; /* cards, forms  */
+
+  --color-text: #10241f; /* body copy, headings */
+  --color-text-muted: #4b6b66; /* captions, timestamps, helper text */
+
+  --color-border: #dceae8; /* card borders, input borders, dividers */
+
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+
+  /* Derived, low-opacity washes. Kept here so no component invents one. */
+  --color-primary-wash: rgba(1, 107, 97, 0.08);
+  --color-tint-wash: rgba(158, 207, 212, 0.22);
+  --color-success-wash: rgba(34, 197, 94, 0.12);
+  --color-error-wash: rgba(239, 68, 68, 0.1);
+  --color-accent-wash: rgba(229, 233, 197, 0.55);
+
+  /* ---- Typography -------------------------------------------- */
+  --font-sans: 'Inter', 'Noto Sans Devanagari', system-ui, -apple-system, sans-serif;
+
+  --font-size-xs: 12px;
+  --font-size-sm: 14px; /* table cells, helper text, badges */
+  --font-size-body: 16px;
+  --font-size-body-lg: 18px; /* volunteer-facing body — min 18px */
+  --font-size-h3: 20px;
+  --font-size-h2: 24px;
+  --font-size-h1: 32px;
+  --font-size-display: 40px; /* the one thing on a status screen */
+
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+
+  --line-height-tight: 1.25;
+  --line-height-body: 1.5;
+
+  /* ---- Spacing — multiples of 4 only -------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Radius ------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation — tinted with brand teal, never flat black --- */
+  --shadow-sm: 0 1px 3px rgba(1, 107, 97, 0.08);
+  --shadow-md: 0 4px 12px rgba(1, 107, 97, 0.1);
+  --shadow-lg: 0 12px 32px rgba(1, 107, 97, 0.16);
+
+  /* ---- Layout ------------------------------------------------- */
+  --width-volunteer: 480px; /* single-task flows centre at 480px */
+  --width-portal: 1120px; /* the logged-in volunteer portal    */
+  --height-navbar: 64px;
+  --height-tabbar: 64px;
+  --height-touch: 48px; /* minimum touch target */
+  --height-action: 56px; /* thumb-zone primary button */
+
+  /* ---- Motion — nothing over 250ms, nothing on scroll --------- */
+  --transition: 180ms ease;
+  --transition-slow: 250ms ease;
+
+  --z-navbar: 100;
+  --z-tabbar: 100;
+  --z-dialog: 200;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition: 1ms linear;
+    --transition-slow: 1ms linear;
+  }
+}

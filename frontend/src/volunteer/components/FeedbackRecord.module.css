@@ -1,0 +1,246 @@
+.record {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.face {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-wash);
+  border: 1px solid var(--color-accent);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.summaryText {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--font-size-h3);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.metaIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-secondary);
+}
+
+.dot {
+  padding: 0 var(--space-1);
+}
+
+.average {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryEnd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.reference {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Toggle ------------------------------------------------------------ */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--height-touch);
+  margin-top: var(--space-2);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ---- Details ----------------------------------------------------------- */
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.groupTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ratings {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.ratingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.ratingLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.ratingValue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.bar {
+  display: block;
+  flex: 1;
+  height: 8px;
+  max-width: 160px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+}
+
+/* A low score reads as low without needing the number. */
+.barLow {
+  background: var(--color-error);
+}
+
+.score,
+.scoreLow {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.score {
+  color: var(--color-text);
+}
+
+.scoreLow {
+  color: var(--color-error);
+}
+
+.scoreWord {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The reason given at the moment of the low score. */
+.reason {
+  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-wash);
+  border-left: 2px solid var(--color-error);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.comment {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-tint);
+  font-size: var(--font-size-body);
+  color: var(--color-text);
+  line-height: var(--line-height-body);
+}
+
+.timestamp {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 767px) {
+  .record {
+    padding: var(--space-4);
+  }
+
+  .summary {
+    gap: var(--space-3);
+  }
+
+  .title {
+    font-size: var(--font-size-body-lg);
+  }
+
+  .ratingRow {
+    grid-template-columns: 1fr;
+  }
+
+  .bar {
+    max-width: none;
+  }
+}

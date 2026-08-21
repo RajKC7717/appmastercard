@@ -1,0 +1,216 @@
+/* ---- Top bar ----------------------------------------------------------- */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-navbar);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--height-navbar);
+  max-width: var(--width-portal);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.brand {
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-right: auto;
+}
+
+.tabWrap {
+  position: relative;
+}
+
+/* ---- A tab — same class on the top bar and the bottom bar -------------- */
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--height-touch);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  text-decoration: none;
+  transition:
+    color var(--transition),
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.tab:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-wash);
+}
+
+/* Unmistakable, not a slightly different shade: colour + weight + rule. */
+.tabActive {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  border-bottom-color: var(--color-primary);
+}
+
+.tabIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ---- Profile chip ------------------------------------------------------ */
+
+.profileSlot {
+  flex-shrink: 0;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--height-touch);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.profile:hover {
+  border-color: var(--color-secondary);
+  background: var(--color-tint-wash);
+}
+
+.profileActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-wash);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.profileText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.profileName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.profileOrg {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- Bottom tab bar — mobile only -------------------------------------- */
+
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .inner {
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
+    justify-content: space-between;
+  }
+
+  .tabs {
+    display: none; /* the four destinations live in the bottom bar */
+  }
+
+  .tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-tabbar);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: stretch;
+    height: calc(var(--height-tabbar) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -1px 3px rgba(1, 107, 97, 0.08);
+  }
+
+  .tabbar .tab {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-1);
+    height: 100%;
+    padding: 0 var(--space-1);
+    border-bottom: none;
+    border-top: 2px solid transparent;
+    border-radius: 0;
+    font-size: var(--font-size-xs);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tabbar .tabActive {
+    border-bottom-color: transparent;
+    border-top-color: var(--color-primary);
+    background: var(--color-primary-wash);
+  }
+
+  .tabbar .tabIcon {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* On mobile the profile lives in the bottom bar, so the chip shrinks
+     to just the avatar in the top bar. */
+  .profileText {
+    display: none;
+  }
+
+  .profile {
+    padding: 0 var(--space-1);
+    border-color: transparent;
+  }
+}
