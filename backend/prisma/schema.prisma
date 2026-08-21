@@ -1,0 +1,761 @@
+// =============================================================================
+//  Volunteer Experience / Feedback Tracking System
+//  PostgreSQL 13+  ·  Prisma ORM
+// =============================================================================
+//
+//  DOMAIN SUMMARY
+//  --------------
+//  An NGO runs volunteering events for the employees of its corporate partners.
+//  There are two COMPLETELY SEPARATE user domains (RULE 4):
+//
+//    NgoUser      -> ADMIN | STAFF      (works for the NGO, has NO companyId)
+//    CompanyUser  -> SPOC  | VOLUNTEER  (works for a company, has exactly one companyId)
+//
+//  Because the two domains are distinct tables with distinct role enums, an NGO
+//  ADMIN can never be a SPOC/VOLUNTEER and a CompanyUser can never be
+//  ADMIN/STAFF. RULES 2, 3, 5 and 6 are therefore enforced structurally by the
+//  database and are impossible to violate.
+//
+//  ID / TIMESTAMP CONVENTIONS
+//  --------------------------
+//  * All primary keys are UUIDs (`uuid` column type) defaulted in the database
+//    via `gen_random_uuid()`, so rows inserted by Prisma AND by raw SQL both get
+//    valid ids. (Built into PostgreSQL 13+; on PG12 enable pgcrypto.)
+//  * All instants are `timestamptz(6)` -> stored as UTC, rendered per-session.
+//    Prisma exposes them as `DateTime`.
+//  * Model / field names are camelCase for the Prisma Client; every table and
+//    column is @@map/@map-ed to snake_case, which is the PostgreSQL convention
+//    and avoids permanently quoted identifiers.
+//
+//  CONSTRAINTS THAT LIVE OUTSIDE THIS FILE
+//  ---------------------------------------
+//  Prisma's schema language has no CHECK-constraint syntax, so value-range rules
+//  (rating 1..5, confidence 0..1, feedbackStart < feedbackEnd, ...) are declared
+//  as real PostgreSQL CHECK constraints in
+//  `prisma/migrations/20260821000100_business_check_constraints/migration.sql`.
+//  Prisma does not manage CHECK constraints, so they survive future migrations
+//  without causing drift. Each one is cross-referenced in the model comments
+//  below. Rules that need to read another row (SPOC role, cross-company
+//  registration, mandatory-theme completeness, feedback window) are enforced in
+//  the service layer under `src/services/` -- see docs/DATABASE.md.
+//
+//  2026-08-21 CHANGE NOTE: the mandatory FeedbackTheme set was revised from six
+//  themes to nine -- see FeedbackTheme, InsightTheme, and FeedbackRating below.
+//  `feedback_insights_theme_link_check` in the CHECK-constraint migration must
+//  be updated in lockstep to the new nine-code mandatory set; it is not
+//  expressible in this file. See docs/DATABASE.md.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+//  ENUMS  (used instead of free-text wherever the value set is controlled)
+// =============================================================================
+
+/// Roles available to NGO staff. RULE 3: an NgoUser is ADMIN or STAFF, never a
+/// SPOC or VOLUNTEER -- those values simply do not exist in this enum.
+enum NgoRole {
+  ADMIN
+  STAFF
+
+  @@map("ngo_role")
+}
+
+/// Roles available to corporate employees. RULE 2 / RULE 6: a CompanyUser is
+/// SPOC or VOLUNTEER, never ADMIN or STAFF.
+enum CompanyRole {
+  SPOC
+  VOLUNTEER
+
+  @@map("company_role")
+}
+
+/// Lifecycle of a volunteering event. Events are CANCELLED, never deleted, so
+/// that registrations and feedback stay auditable (see delete strategy).
+enum EventStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  ONGOING
+  COMPLETED
+  CANCELLED
+
+  @@map("event_status")
+}
+
+/// Per-registration attendance outcome.
+enum AttendanceStatus {
+  REGISTERED
+  ATTENDED
+  ABSENT
+  CANCELLED
+
+  @@map("attendance_status")
+}
+
+/// Shared status for asynchronous AI processing (Feedback + AIAnalysisRun).
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("processing_status")
+}
+
+/// Where a numeric rating came from.
+/// EXPLICIT     -> the volunteer selected it on the feedback form.
+/// AI_INFERRED  -> derived by the AI pipeline for a theme the volunteer did not
+///                 rate explicitly. RULE 21: never overwrite an EXPLICIT rating.
+enum RatingSource {
+  EXPLICIT
+  AI_INFERRED
+
+  @@map("rating_source")
+}
+
+/// 5-point aspect sentiment produced by Aspect-Based Sentiment Analysis.
+enum Sentiment {
+  VERY_NEGATIVE
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+  VERY_POSITIVE
+
+  @@map("sentiment")
+}
+
+/// How a FeedbackInsight was produced. The AI pipeline accepts its own output
+/// when confidence >= AI_CONFIDENCE_THRESHOLD (default 0.75) and otherwise falls
+/// back to keyword heuristics -- RULE 22.
+enum ExtractionMethod {
+  AI
+  HEURISTIC
+  HYBRID
+
+  @@map("extraction_method")
+}
+
+/// Controlled vocabulary of themes the AI may attach to a free-text comment.
+///
+/// The first nine values mirror the nine mandatory FeedbackTheme rows (see
+/// FeedbackTheme below); the next four are retired mandatory-theme mirrors,
+/// kept only so historical FeedbackInsight rows written under the old
+/// six-theme set stay valid -- they are no longer produced by the classifier
+/// for new feedback. The rest are analytics-only aspects that have no rating
+/// question on the form at all. Modelling this as an enum (rather than free
+/// text) is what makes the requirement "do NOT allow arbitrary synonyms to
+/// become separate analytics categories" enforceable: the database physically
+/// rejects an un-normalised label such as "started late", so the classifier is
+/// obliged to map it onto TIMELINE_PLANNING. `OTHER` is the escape hatch that
+/// keeps the pipeline from crashing on a genuinely novel aspect; recurring
+/// OTHER volume is the signal to add a new value in a migration.
+enum InsightTheme {
+  // --- mirrors the nine mandatory rating themes ------------------------------
+  IMPACT
+  TIMELINE_PLANNING
+  REQUIREMENTS_PLANNING
+  FINANCIAL_PLANNING
+  PRE_EVENT_COMMUNICATION
+  DAY_OF_COMMUNICATION
+  SKILL_UTILIZATION
+  STAFF_SUPPORT
+  PARTICIPATION_LIKELIHOOD
+  // --- retired mandatory-theme mirrors (pre 2026-08-21) ----------------------
+  // No longer written by the classifier; kept so old FeedbackInsight rows
+  // referencing them remain valid. Do not remove -- see FeedbackTheme note.
+  OVERALL_EXPERIENCE
+  PUNCTUALITY
+  ORGANIZATION
+  COMMUNICATION
+  // --- additional, analytics-only aspects -----------------------------------
+  VENUE
+  TRANSPORT
+  FOOD
+  SAFETY
+  FACILITATOR
+  EQUIPMENT
+  BENEFICIARY_INTERACTION
+  ACTIVITY_DIFFICULTY
+  WAITING_TIME
+  ACCESSIBILITY
+  OTHER
+
+  @@map("insight_theme")
+}
+
+/// Languages accepted for free-text feedback (ISO 639-1). Adding a language is a
+/// one-line `ALTER TYPE ... ADD VALUE` migration.
+enum FeedbackLanguage {
+  EN
+  MR
+  HI
+
+  @@map("feedback_language")
+}
+
+// =============================================================================
+//  1. NgoUser  ->  table "ngo_users"
+// =============================================================================
+
+/// NGO-side user. Deliberately has NO companyId (RULE 4): NGO staff are not
+/// corporate employees and are not scoped to a single company.
+///
+/// RULE 8/9: only an ADMIN may create events; every Event.adminId points here.
+/// The role check itself is service-layer (`src/services/eventService.ts`)
+/// because a foreign key cannot look at the referenced row's `role` column.
+model NgoUser {
+  userId String  @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  name   String  @db.VarChar(150)
+  role   NgoRole
+
+  /// Globally unique -- NGO users log in with email alone (no company scope).
+  email String @unique @db.VarChar(255)
+  phone String @db.VarChar(20)
+
+  /// Section 20: scrypt/bcrypt digest only. A plaintext password is never
+  /// accepted, stored, logged or returned by any DTO.
+  passwordHash String @map("password_hash") @db.VarChar(255)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  /// Events this NGO user created. Restrict on delete: an admin who has created
+  /// events cannot be removed, because that would orphan event provenance.
+  createdEvents Event[] @relation("NgoUserCreatedEvents")
+
+  @@index([role])
+  @@map("ngo_users")
+}
+
+// =============================================================================
+//  2. Company  ->  table "companies"
+// =============================================================================
+
+/// A corporate partner of the NGO.
+///
+/// Soft-deleted (`deletedAt`) rather than hard-deleted: a company's historical
+/// events, registrations and feedback must remain queryable for reporting, so a
+/// physical DELETE is blocked by RESTRICT foreign keys anyway.
+model Company {
+  companyId   String @id @default(dbgenerated("gen_random_uuid()")) @map("company_id") @db.Uuid
+  companyName String @unique @map("company_name") @db.VarChar(200)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Non-null => offboarded. Application queries must filter `deletedAt: null`.
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  users  CompanyUser[] @relation("CompanyMembers")
+  events Event[]       @relation("CompanyEvents")
+
+  /// Supports "list active partners" without scanning offboarded rows.
+  @@index([deletedAt])
+  @@map("companies")
+}
+
+// =============================================================================
+//  3. CompanyUser  ->  table "company_users"
+// =============================================================================
+
+/// A corporate employee: either the company's SPOC or a VOLUNTEER.
+///
+/// RULE 1: exactly ONE company per user -- `companyId` is NOT NULL, so
+/// multi-company membership is representable only by creating a second row.
+/// There is deliberately ONE table for all companies (never one table per
+/// company); every access path is scoped by the leading `companyId` index.
+model CompanyUser {
+  userId    String      @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  companyId String      @map("company_id") @db.Uuid
+  name      String      @db.VarChar(150)
+  role      CompanyRole
+
+  /// Unique WITHIN a company, not globally: the same person may legitimately
+  /// exist under two different corporate partners. Login is companyId + email.
+  email String @db.VarChar(255)
+  phone String @db.VarChar(20)
+
+  /// Digest only -- never a plaintext password, never exposed in a DTO.
+  passwordHash String @map("password_hash") @db.VarChar(255)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+  /// Non-null => the employee has left. Their registrations and feedback are
+  /// retained; RESTRICT foreign keys prevent a hard DELETE from erasing them.
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyMembers", fields: [companyId], references: [companyId], onDelete: Restrict, onUpdate: Cascade)
+
+  /// Events where this user (necessarily role = SPOC) is the assigned SPOC.
+  eventsAsSpoc Event[] @relation("EventAssignedSpoc")
+
+  /// Event registrations where this user (necessarily role = VOLUNTEER) is the
+  /// participant.
+  registrations EventRegistration[] @relation("VolunteerRegistrations")
+
+  /// Email is unique per company. Also the index that serves the login query
+  /// `WHERE companyId = ? AND email = ?`.
+  @@unique([companyId, email], map: "company_users_company_id_email_key")
+  /// Not a business rule on its own (userId is already the PK) -- this is the
+  /// unique key that lets Event declare a COMPOSITE foreign key on
+  /// (companyId, spocId), which is how RULE 11 becomes database-enforced.
+  @@unique([companyId, userId], map: "company_users_company_id_user_id_key")
+  /// Serves `WHERE companyId = ?` (all employees of a company).
+  @@index([companyId])
+  /// Serves `WHERE companyId = ? AND role = 'VOLUNTEER'` / `= 'SPOC'`.
+  @@index([companyId, role])
+  /// Cross-company lookup by email (password reset, duplicate detection).
+  @@index([email])
+  @@map("company_users")
+}
+
+// =============================================================================
+//  4. Event  ->  table "events"
+// =============================================================================
+
+/// A volunteering activity created by an NGO ADMIN for exactly one company.
+///
+/// This model carries THREE relations and therefore uses explicit relation names
+/// to keep the Prisma Client unambiguous:
+///   company -> Company      ("CompanyEvents")
+///   admin   -> NgoUser      ("NgoUserCreatedEvents")
+///   spoc    -> CompanyUser  ("EventAssignedSpoc")
+///
+/// ---------------------------------------------------------------------------
+///  RULE 11 (SPOC must belong to the event's company) IS DATABASE-ENFORCED
+/// ---------------------------------------------------------------------------
+/// The `spoc` relation is a COMPOSITE foreign key on (companyId, spocId)
+/// referencing company_users(company_id, user_id). Because `companyId` is shared
+/// with the `company` relation, PostgreSQL guarantees that the assigned SPOC row
+/// carries the very same company_id as the event -- a Mastercard event can never
+/// point at a BNY Mellon SPOC. No trigger and no service-layer check is needed
+/// for the *company* half of the rule.
+///
+/// A composite FK in PostgreSQL uses MATCH SIMPLE, so the constraint is simply
+/// not checked when `spocId IS NULL`. That is exactly RULE 10: an event may have
+/// zero or one SPOC.
+///
+/// What the FK still cannot see is the referenced row's `role` column, so
+/// "the assigned user must have role = SPOC" remains a service-layer assertion
+/// (`assertAssignableSpoc` in src/services/eventService.ts). Likewise RULE 8
+/// ("only ADMIN creates events") -- the FK proves adminId is an NgoUser but not
+/// that its role is ADMIN.
+///
+/// Because both foreign keys share the `company_id` column, `onDelete` on the
+/// spoc relation must be Restrict: SET NULL would try to null `company_id` too,
+/// which is NOT NULL. To retire a SPOC, first set `spocId = null` explicitly.
+model Event {
+  eventId String @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  /// RULE 7: exactly one owning company. NOT NULL, never changed after creation.
+  companyId String @map("company_id") @db.Uuid
+  /// RULE 9: every event has a creating NGO admin.
+  adminId String @map("admin_id") @db.Uuid
+  /// RULE 10: optional single SPOC, constrained to `companyId` (see above).
+  spocId String? @map("spoc_id") @db.Uuid
+
+  eventName   String      @map("event_name") @db.VarChar(200)
+  description String      @db.Text
+  location    String      @db.VarChar(255)
+  status      EventStatus @default(UPCOMING)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// When the volunteering activity takes place.
+  eventDate DateTime @map("event_date") @db.Timestamptz(6)
+
+  /// Optional feedback window. Both bounds are independently nullable; when both
+  /// are present a CHECK constraint enforces feedbackStart < feedbackEnd
+  /// (`events_feedback_window_check`). The service layer additionally refuses a
+  /// feedback submission outside [feedbackStart, feedbackEnd] when configured.
+  feedbackStart DateTime? @map("feedback_start") @db.Timestamptz(6)
+  feedbackEnd   DateTime? @map("feedback_end") @db.Timestamptz(6)
+
+  company Company      @relation("CompanyEvents", fields: [companyId], references: [companyId], onDelete: Restrict, onUpdate: Cascade)
+  admin   NgoUser      @relation("NgoUserCreatedEvents", fields: [adminId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  spoc    CompanyUser? @relation("EventAssignedSpoc", fields: [companyId, spocId], references: [companyId, userId], onDelete: Restrict, onUpdate: Cascade)
+
+  registrations EventRegistration[] @relation("EventRegistrations")
+
+  /// "All events for a company".
+  @@index([companyId])
+  /// Global calendar / date-range scans.
+  @@index([eventDate])
+  /// Status dashboards across all companies.
+  @@index([status])
+  /// "Upcoming events for a company" -- the hot dashboard query.
+  @@index([companyId, status])
+  /// "Events for a company ordered by date" without re-sorting.
+  @@index([companyId, eventDate])
+  /// "Events created by this admin".
+  @@index([adminId])
+  /// "Events I am the SPOC for". Note PostgreSQL does NOT auto-index a foreign
+  /// key, and the composite FK's leading column is company_id, not spoc_id.
+  @@index([spocId])
+  @@map("events")
+}
+
+// =============================================================================
+//  5. EventRegistration  ->  table "event_registrations"
+// =============================================================================
+
+/// A volunteer signing up for one event.
+///
+/// RULE 13 is database-enforced: UNIQUE(eventId, userId) makes a second
+/// registration by the same volunteer for the same event impossible.
+///
+/// RULE 12 (a volunteer may only register for their OWN company's events) is
+/// SERVICE-LAYER enforced in `registerVolunteer()`. It is deliberately not
+/// modelled as a composite FK: doing so would require denormalising `companyId`
+/// onto this table (it is already reachable via both event and user), and a
+/// stale copy of that column would be a worse correctness risk than one
+/// well-tested transactional check. The check runs inside the same transaction
+/// as the insert.
+model EventRegistration {
+  registrationId String @id @default(dbgenerated("gen_random_uuid()")) @map("registration_id") @db.Uuid
+  eventId        String @map("event_id") @db.Uuid
+  /// The volunteer. Service layer asserts role = VOLUNTEER and that
+  /// `companyUser.companyId == event.companyId`.
+  userId String @map("user_id") @db.Uuid
+
+  registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  attendanceStatus AttendanceStatus @default(REGISTERED) @map("attendance_status")
+
+  /// Denormalised convenience mirror of `feedback.submittedAt`, maintained in the
+  /// same transaction as the feedback insert. Lets "registered but never gave
+  /// feedback" (query 16) and the response-rate metric (query 17) be answered
+  /// from this table alone, with no join to feedback.
+  feedbackSubmittedAt DateTime? @map("feedback_submitted_at") @db.Timestamptz(6)
+
+  event     Event       @relation("EventRegistrations", fields: [eventId], references: [eventId], onDelete: Restrict, onUpdate: Cascade)
+  volunteer CompanyUser @relation("VolunteerRegistrations", fields: [userId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+
+  /// RULE 15's structural half: 0..1 feedback per registration.
+  feedback Feedback? @relation("RegistrationFeedback")
+
+  /// RULE 13: one registration per (event, volunteer).
+  @@unique([eventId, userId], map: "event_registrations_event_id_user_id_key")
+  /// "All registrations for a volunteer". Needed as its own index because
+  /// user_id is not the leading column of any other key here.
+  @@index([userId])
+  /// "Attendance sheet for an event" / count ATTENDED vs ABSENT.
+  @@index([eventId, attendanceStatus])
+  /// NOTE: a standalone index on `eventId` is intentionally omitted -- both
+  /// UNIQUE(event_id, user_id) and (event_id, attendance_status) already expose
+  /// event_id as their leading column, so a third index would be pure write
+  /// overhead with no read benefit.
+  @@map("event_registrations")
+}
+
+// =============================================================================
+//  6. Feedback  ->  table "feedback"
+// =============================================================================
+
+/// One feedback submission, hanging off the registration rather than off
+/// (event, volunteer).
+///
+/// RULE 15 is database-enforced with zero ambiguity: `registrationId` is UNIQUE,
+/// and a registration is already unique per (event, volunteer). Therefore a
+/// volunteer can submit at most one feedback per event, and RULE 14 (feedback
+/// requires a registration) is guaranteed by the NOT NULL foreign key -- there
+/// is no way to insert feedback that is not attached to a real registration.
+///
+/// `eventId` and `volunteerId` are deliberately NOT duplicated here; both are
+/// reachable through the registration, and a copy could drift.
+model Feedback {
+  feedbackId String @id @default(dbgenerated("gen_random_uuid()")) @map("feedback_id") @db.Uuid
+  /// RULE 15: UNIQUE -> at most one feedback per registration.
+  registrationId String @unique @map("registration_id") @db.Uuid
+
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// RULE 19 / RULE 20: the OPTIONAL free-text answer to "Any other
+  /// recommendations or comments?", stored EXACTLY as the volunteer typed it.
+  /// The AI pipeline only ever READS this column -- nothing in the system
+  /// rewrites, translates or truncates it. All derived text lives in
+  /// FeedbackInsight.evidenceText.
+  overallComment String? @map("overall_comment") @db.Text
+
+  /// Language of `overallComment`, so the classifier can pick the right model.
+  language FeedbackLanguage @default(EN)
+
+  /// State of the AI pipeline for this feedback. Drives the worker queue.
+  processingStatus ProcessingStatus @default(PENDING) @map("processing_status")
+  /// Set when the pipeline finished (successfully or not).
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  registration EventRegistration @relation("RegistrationFeedback", fields: [registrationId], references: [registrationId], onDelete: Restrict, onUpdate: Cascade)
+
+  /// Explicit 1-5 answers. Cascade: ratings are wholly-owned children of a
+  /// feedback and are meaningless without it.
+  ratings FeedbackRating[] @relation("FeedbackRatings")
+
+  /// RULE 21: AI output is stored HERE, separate from `ratings`.
+  insights FeedbackInsight[] @relation("FeedbackInsights")
+
+  /// Audit trail of every AI attempt on this feedback.
+  analysisRuns AIAnalysisRun[] @relation("FeedbackAnalysisRuns")
+
+  /// Reporting over submission time ("feedback received this month").
+  @@index([submittedAt])
+  /// Worker queue: `WHERE processingStatus = 'PENDING'`.
+  @@index([processingStatus])
+  @@map("feedback")
+}
+
+// =============================================================================
+//  7. FeedbackTheme  ->  table "feedback_themes"
+// =============================================================================
+
+/// Catalogue of rateable themes. Normalised on purpose: the alternative --
+/// hard-coded `overallRating`, `punctualityRating`, ... columns on Feedback --
+/// would require a schema migration for every new question and would make
+/// "average per theme" a UNION instead of a GROUP BY.
+///
+/// The system ships with NINE mandatory themes (seeded, isMandatory = true,
+/// isActive = true, displayOrder 1..9):
+///   1  IMPACT                     "How meaningful was the impact of this
+///                                  event on the community you served?"
+///   2  TIMELINE_PLANNING          "How well was the event timeline planned
+///                                  in advance (scheduling, duration, dates
+///                                  communicated ahead of time)?"
+///   3  REQUIREMENTS_PLANNING      "How well were the requirements for this
+///                                  event planned in advance (roles, tasks,
+///                                  materials briefed beforehand)?"
+///   4  FINANCIAL_PLANNING         "How well was the financial/budgetary
+///                                  planning handled for this event
+///                                  (resources, expenses, funding readiness)?"
+///   5  PRE_EVENT_COMMUNICATION    "How clear and timely was communication
+///                                  from the NGO before the event
+///                                  (instructions, updates, expectations)?"
+///   6  DAY_OF_COMMUNICATION       "How clear was communication on the day
+///                                  of the event (instructions on-site,
+///                                  updates during the activity)?"
+///   7  SKILL_UTILIZATION          "How well were your skills and abilities
+///                                  utilized during the event?"
+///   8  STAFF_SUPPORT              "How would you rate the NGO staff's
+///                                  coordination, support, and
+///                                  responsiveness to your queries?"
+///   9  PARTICIPATION_LIKELIHOOD   "How likely are you to recommend
+///                                  participating in this event to others?"
+/// The free-text "any other recommendations or comments?" answer is NOT a
+/// theme -- it stays as Feedback.overallComment (see above).
+///
+/// Themes are never deleted -- retire one by setting `isActive = false`,
+/// which is why FeedbackRating.themeId is RESTRICT. The original six-theme
+/// set (OVERALL_EXPERIENCE, PUNCTUALITY, ORGANIZATION, COMMUNICATION, plus
+/// IMPACT and PARTICIPATION_LIKELIHOOD which carried over) should be retired
+/// this way -- `isActive = false` on the four dropped rows -- rather than
+/// deleted, so historical FeedbackRating rows referencing them stay intact.
+model FeedbackTheme {
+  themeId String @id @default(dbgenerated("gen_random_uuid()")) @map("theme_id") @db.Uuid
+
+  /// Stable machine key (e.g. "TIMELINE_PLANNING"). Unique -- this is what the
+  /// seed upserts on and what the AI classifier maps its InsightTheme onto.
+  themeCode String @unique @map("theme_code") @db.VarChar(64)
+  themeName String @map("theme_name") @db.VarChar(150)
+
+  /// The exact question shown to the volunteer.
+  question    String  @db.Text
+  description String? @db.Text
+
+  /// Labels for the 1-5 scale, as {"1": "...", ..., "5": "..."}. Stored as JSONB
+  /// because PARTICIPATION_LIKELIHOOD is a behavioural intention metric whose
+  /// labels are Very Unlikely..Very Likely rather than Very Poor..Excellent.
+  /// Keeping the labels beside the question avoids either a per-theme table or
+  /// hard-coding the exception in the UI.
+  scaleLabels Json @map("scale_labels") @db.JsonB
+
+  /// RULE 18: every submitted feedback must carry a rating for each mandatory
+  /// theme. Completeness is asserted in `submitFeedback()` before the feedback
+  /// is accepted -- a row-count rule that SQL constraints cannot express.
+  isMandatory Boolean @default(true) @map("is_mandatory")
+  /// false = retired; excluded from new forms but kept for historical ratings.
+  isActive Boolean @default(true) @map("is_active")
+  /// Presentation order on the form (1-based, unique among themes).
+  displayOrder Int @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ratings FeedbackRating[] @relation("ThemeRatings")
+
+  /// Optional back-relation: an insight may reference a mandatory theme, or none.
+  insights FeedbackInsight[] @relation("ThemeInsights")
+
+  /// One theme per position, so the form order is deterministic.
+  @@unique([displayOrder], map: "feedback_themes_display_order_key")
+  /// Renders the live form: `WHERE isActive ORDER BY displayOrder`.
+  @@index([isActive, displayOrder])
+  /// Fetch the mandatory set for the RULE 18 completeness check.
+  @@index([isMandatory])
+  @@map("feedback_themes")
+}
+
+// =============================================================================
+//  8. FeedbackRating  ->  table "feedback_ratings"
+// =============================================================================
+
+/// One volunteer answer: Feedback x FeedbackTheme -> 1..5.
+///
+/// RULE 16 (1..5) is a PostgreSQL CHECK constraint
+/// (`feedback_ratings_rating_range_check`) because Prisma cannot express CHECK.
+/// RULE 17 (one rating per theme per feedback) is UNIQUE(feedbackId, themeId).
+model FeedbackRating {
+  ratingId   String @id @default(dbgenerated("gen_random_uuid()")) @map("rating_id") @db.Uuid
+  feedbackId String @map("feedback_id") @db.Uuid
+  themeId    String @map("theme_id") @db.Uuid
+
+  /// 1..5 inclusive. smallint is plenty and keeps the row narrow.
+  rating Int @db.SmallInt
+
+  /// EXPLICIT for the nine mandatory form answers (asserted in the service
+  /// layer); AI_INFERRED only for themes the volunteer did not answer.
+  source RatingSource @default(EXPLICIT)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  feedback Feedback      @relation("FeedbackRatings", fields: [feedbackId], references: [feedbackId], onDelete: Cascade, onUpdate: Cascade)
+  theme    FeedbackTheme @relation("ThemeRatings", fields: [themeId], references: [themeId], onDelete: Restrict, onUpdate: Cascade)
+
+  /// RULE 17. Also the covering index for "all ratings of this feedback".
+  @@unique([feedbackId, themeId], map: "feedback_ratings_feedback_id_theme_id_key")
+  /// Powers "average rating per theme" and "distribution of a theme's scores"
+  /// (queries 11-13) with an index-only scan; `themeId` alone is served by this
+  /// index's leading column, and `feedbackId` by the unique key above.
+  @@index([themeId, rating])
+  @@map("feedback_ratings")
+}
+
+// =============================================================================
+//  9. FeedbackInsight  ->  table "feedback_insights"
+// =============================================================================
+
+/// One (theme, sentiment, confidence, evidence) tuple extracted from the
+/// volunteer's free-text comment by Aspect-Based Sentiment Analysis.
+///
+/// A single comment yields MANY rows -- that is the whole point. For
+///   "The pre-event timeline was communicated clearly and the volunteering
+///    felt impactful, but our own materials were mismatched and the venue
+///    was cramped."
+/// the pipeline writes four rows:
+///   PRE_EVENT_COMMUNICATION  POSITIVE  0.93  "timeline was communicated clearly"
+///   IMPACT                   POSITIVE  0.90  "felt impactful"
+///   EQUIPMENT                NEGATIVE  0.88  "materials were mismatched"
+///   VENUE                    NEGATIVE  0.91  "venue was cramped"
+/// ...rather than a single "overall sentiment = mixed".
+///
+/// RULE 21: these rows never touch FeedbackRating; explicit volunteer scores and
+/// AI opinion stay side by side so query 20 can diff them.
+model FeedbackInsight {
+  insightId  String @id @default(dbgenerated("gen_random_uuid()")) @map("insight_id") @db.Uuid
+  feedbackId String @map("feedback_id") @db.Uuid
+
+  /// NULLABLE on purpose. The AI detects aspects that have no rating question --
+  /// VENUE, TRANSPORT, FOOD, ... -- and therefore no FeedbackTheme row. In that
+  /// case themeId IS NULL and `detectedTheme` carries the label. For one of the
+  /// nine mandatory themes both are populated and consistent
+  /// (`feedback_insights_theme_link_check` enforces that they agree; that
+  /// constraint's hardcoded theme-code list must be updated to the current
+  /// nine-code mandatory set alongside this schema change -- see the migration
+  /// file, not this schema).
+  themeId String? @map("theme_id") @db.Uuid
+
+  /// The normalised aspect label, always populated. Being an enum is what stops
+  /// "started late" / "timing was bad" / "schedule was delayed" from becoming
+  /// three separate analytics buckets instead of TIMELINE_PLANNING.
+  detectedTheme InsightTheme @map("detected_theme")
+
+  sentiment Sentiment
+  /// Optional signed intensity in [-1.000, 1.000] when the model exposes one
+  /// (`feedback_insights_sentiment_score_range_check`).
+  sentimentScore Decimal? @map("sentiment_score") @db.Decimal(4, 3)
+  /// RULE 22: mandatory model confidence in [0.000, 1.000]
+  /// (`feedback_insights_confidence_range_check`). Compared against
+  /// AI_CONFIDENCE_THRESHOLD (0.75) to choose `extractionMethod`.
+  confidence Decimal @db.Decimal(4, 3)
+
+  /// The exact fragment of `feedback.overallComment` that justifies this row --
+  /// e.g. "venue was cramped". This is what makes the classification
+  /// explainable to an admin or SPOC. It is a COPY of a substring; the original
+  /// comment is never modified (RULE 20).
+  evidenceText String @map("evidence_text") @db.Text
+
+  /// RULE 22: how this row was produced. AI when confidence >= 0.75, otherwise
+  /// HEURISTIC (keyword fallback) or HYBRID (AI theme + heuristic sentiment).
+  extractionMethod ExtractionMethod @map("extraction_method")
+  /// Required for AI and HYBRID, null for pure HEURISTIC
+  /// (`feedback_insights_model_provenance_check`).
+  modelName    String? @map("model_name") @db.VarChar(100)
+  modelVersion String? @map("model_version") @db.VarChar(50)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  feedback Feedback @relation("FeedbackInsights", fields: [feedbackId], references: [feedbackId], onDelete: Cascade, onUpdate: Cascade)
+
+  /// SetNull rather than Restrict: an insight keeps its meaning through
+  /// `detectedTheme` even if the catalogue row were ever removed.
+  theme FeedbackTheme? @relation("ThemeInsights", fields: [themeId], references: [themeId], onDelete: SetNull, onUpdate: Cascade)
+
+  /// "All AI insights for this feedback" (and, joined up, for an event).
+  @@index([feedbackId])
+  /// "All insights mapped to this mandatory theme".
+  @@index([themeId])
+  /// Drill-down: sentiment breakdown for one aspect. Also serves `detectedTheme`
+  /// alone via its leading column.
+  @@index([detectedTheme, sentiment])
+  /// Queries 14/18/19: "most common negative (or positive) themes" -- filter on
+  /// sentiment first, then group by theme.
+  @@index([sentiment, detectedTheme])
+  @@map("feedback_insights")
+}
+
+// =============================================================================
+// 10. AIAnalysisRun  ->  table "ai_analysis_runs"
+// =============================================================================
+
+/// Audit record for one execution of the AI pipeline over one feedback.
+///
+/// Kept separate from FeedbackInsight so that failed and retried attempts are
+/// recorded without polluting analytics, and so every insight can be traced back
+/// to the model + prompt version that produced it.
+model AIAnalysisRun {
+  analysisRunId String @id @default(dbgenerated("gen_random_uuid()")) @map("analysis_run_id") @db.Uuid
+  feedbackId    String @map("feedback_id") @db.Uuid
+
+  modelName    String @map("model_name") @db.VarChar(100)
+  modelVersion String @map("model_version") @db.VarChar(50)
+  /// Version of the prompt template, so a prompt change is attributable.
+  promptVersion String @map("prompt_version") @db.VarChar(50)
+
+  processingStatus ProcessingStatus @default(PENDING) @map("processing_status")
+  /// Wall-clock duration; null until the run finishes
+  /// (`ai_analysis_runs_processing_time_check` keeps it non-negative).
+  processingTimeMs Int? @map("processing_time_ms")
+  /// Populated only for FAILED runs. Must never contain feedback PII verbatim.
+  errorMessage String? @map("error_message") @db.Text
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  feedback Feedback @relation("FeedbackAnalysisRuns", fields: [feedbackId], references: [feedbackId], onDelete: Cascade, onUpdate: Cascade)
+
+  /// "Run history for this feedback", newest first.
+  @@index([feedbackId])
+  /// Operational monitoring: stuck PROCESSING / FAILED runs.
+  @@index([processingStatus])
+  @@map("ai_analysis_runs")
+}
