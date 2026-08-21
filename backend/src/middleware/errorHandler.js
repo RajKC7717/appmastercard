@@ -9,11 +9,15 @@ export const notFound = (req, res, next) => {
 
 /**
  * Global error handler.
+ * Supports a custom `statusCode` property on thrown Error objects
+ * so service-layer errors can set their own HTTP status.
  */
 export const errorHandler = (err, _req, res, _next) => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  // Use statusCode from the error if set, otherwise fall back to response's
+  // status (set before calling next(error)), or default to 500.
+  const statusCode = err.statusCode || (res.statusCode !== 200 ? res.statusCode : 500);
   res.status(statusCode).json({
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   });
 };

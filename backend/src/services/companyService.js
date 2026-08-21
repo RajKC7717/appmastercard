@@ -1,49 +1,70 @@
-import { companies, counters } from '../data/sampleData.js';
+import { prisma } from '../config/db.js';
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
- * COMPANY SERVICE
+ * COMPANY SERVICE  (Prisma-backed)
  * ────────────────────────────────────────────────────────────────────────────
- * Encapsulates all access to the `companies` data. Swap the array operations
- * for SQL later without changing controllers/routes.
+ * All access to the `companies` table lives here. The Prisma schema uses
+ * soft-delete via `deletedAt`; queries always filter `deletedAt: null`.
  */
 
 /** Shape a company for API responses. */
 export function sanitizeCompany(company) {
   if (!company) return null;
-  return { id: company.id, name: company.name };
+  return {
+    id: company.companyId,
+    name: company.companyName,
+    createdAt: company.createdAt,
+  };
 }
 
-/** List all active companies (raw records). */
+/** List all active companies. */
 export async function findAll() {
-  return companies.filter((c) => c.active);
+  return prisma.company.findMany({
+    where: { deletedAt: null },
+    orderBy: { companyName: 'asc' },
+  });
 }
 
-/** Find an active company by id (raw record) or null. */
+/** Find an active company by UUID or null. */
 export async function findById(id) {
-  const cid = Number(id);
-  return companies.find((c) => c.active && c.id === cid) || null;
+  if (!id) return null;
+  return prisma.company.findFirst({
+    where: { companyId: id, deletedAt: null },
+  });
 }
 
-/** Create a company. Server generates the id. */
+/** Find an active company by name (case-insensitive). */
+export async function findByName(name) {
+  if (!name) return null;
+  return prisma.company.findFirst({
+    where: {
+      companyName: { equals: name, mode: 'insensitive' },
+      deletedAt: null,
+    },
+  });
+}
+
+/** Create a company. Server generates the UUID. */
 export async function createCompany({ name }) {
-  const company = { id: ++counters.companyId, name, active: true };
-  companies.push(company);
-  return company;
+  return prisma.company.create({
+    data: { companyName: name },
+  });
 }
 
 /** Update a company's mutable fields. */
 export async function updateCompany(id, { name }) {
-  const company = await findById(id);
-  if (!company) return null;
-  if (name !== undefined) company.name = name;
-  return company;
+  return prisma.company.update({
+    where: { companyId: id },
+    data: { companyName: name },
+  });
 }
 
-/** Soft-delete (deactivate) a company. Returns true if one was deactivated. */
+/** Soft-delete a company by setting `deletedAt`. */
 export async function deactivateCompany(id) {
-  const company = await findById(id);
-  if (!company) return false;
-  company.active = false;
+  await prisma.company.update({
+    where: { companyId: id },
+    data: { deletedAt: new Date() },
+  });
   return true;
 }
